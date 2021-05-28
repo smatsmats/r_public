@@ -19,7 +19,8 @@ library("scales")
 # - pull plotting out of build county and build state
 #
 
-setwd("~willey/r_out")
+# tmp goes in tmp, everthing is tmp
+setwd("/tmp")
 
 hello <- function() {}
 
@@ -68,7 +69,7 @@ version = 3.0
 
 #  profvis({
 
-file_to_bucket <- function(file) {
+file_to_bucket <- function(file, unlink_after = TRUE) {
 
   if (PUSH_TO_AMAZON ) {
     file <- str_replace_all(file, " ", "_")
@@ -79,6 +80,9 @@ file_to_bucket <- function(file) {
                headers = list(),
                verbose = TRUE,
                show_progress = FALSE)
+  }
+  if ( unlink_after ) {
+    unlink(file)
   }
 
 }
@@ -2009,10 +2013,10 @@ prod(version=version)
 warnings()
 #get_bucket(bucket)
 
-india <- get_admin0(country = "india")
-make_plot(india, "India", daily_cases = TRUE)
-india <- get_admin0(country = "US")
-make_plot(india, "US", daily_cases = TRUE)
+#india <- get_admin0(country = "india")
+#make_plot(india, "India", daily_cases = TRUE)
+#india <- get_admin0(country = "US")
+#make_plot(india, "US", daily_cases = TRUE)
 
 #jpeg(filename = "rplot.jpg", width = 350, height = 350)
 #plot
