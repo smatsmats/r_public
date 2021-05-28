@@ -1340,7 +1340,7 @@ wa_east_west <- function(plot_casesned = FALSE,
   p<- ggplot(data=ew_df, aes(dates)) +
       geom_line(aes(y = west, colour=west_txt)) +
       geom_line(aes(y = east, colour=east_txt)) +
-      scale_color_manual(values = c('yellow', 'green')) +
+      scale_color_manual(values = c('gold', 'green')) +
       ylim(0,maxy) +
       labs(title = main_daily_cases_hundy_14d_avrg_txt,
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
