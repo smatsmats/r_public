@@ -1,0 +1,2038 @@
+#library("NLP")
+#library("tm")
+#library("plotly")
+#library("tictoc")
+library("stringr")
+library("rsconnect")
+library("aws.s3")
+library("zoo")
+library("tidyverse")
+library("ggplot2")
+library("methods")
+library("scales")
+
+# design decisions
+# - don't combine plotting and making df's
+# - except where it makes sense, i.e. build all states
+#
+# work to do
+# - pull plotting out of build county and build state
+#
+
+setwd("~willey/r_out")
+
+hello <- function() {}
+
+USE_JHU_POPS <- TRUE     # pops are populations
+ENABLE_RED_BLUE <- FALSE
+USA_ALL <- TRUE
+USE_GGPLOT <- TRUE
+PUSH_TO_AMAZON <- TRUE
+
+if ( Sys.getenv("AWS_DEFAULT_REGION") == "" ) {
+  cat("No AWS creds in environment\n")
+  cat("turning off AWS pushes")
+  PUSH_TO_AMAZON <- FALSE
+}
+
+# constants
+bucket <- 'rbucket-matsmats'
+plot_start_date <- "2020/3/1"
+plot_end_date <- format(Sys.Date(), "%Y/%m/%d") #gets reset in newday function
+cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
+daily_c19_cases_txt <- "Daily COVID-19 Cases"
+fourteen_day_avrg_txt <- "14day Average"
+fourteen_day_sum_txt <- "14day Sum"
+redblue_txt <- "Red / Blue"
+hundy_txt <- "per 100,000"
+main_daily_cases_hundy_txt <- paste(daily_c19_cases_txt, hundy_txt)
+main_daily_cases_hundy_14d_avrg_txt <- paste(daily_c19_cases_txt, hundy_txt, fourteen_day_avrg_txt)
+main_daily_cases_hundy_14d_sum_txt <- paste(daily_c19_cases_txt, hundy_txt, fourteen_day_sum_txt)
+main_cases_hundy_txt <- paste(cumulative_c19_cases_txt, hundy_txt)
+ylab_cases_txt <- "Cases"
+ylab_daily_cases_txt <- "Daily Cases"
+ylab_cases_hundy_txt <- "Cases / 100,000 Population"
+ylab_daily_cases_hundy_txt <- "Daily Cases / 100,000 Population"
+plot_file_width <- (480 * 2)
+plot_file_height <- (310 * 2)
+
+args = commandArgs(trailingOnly=TRUE)
+print(args)
+if (length(args)==0) {
+  live_mode = TRUE
+} else if (length(args)==1) {
+  live_mode= FALSE
+}
+live_mode= FALSE
+version = 3.0
+
+#  profvis({
+
+file_to_bucket <- function(file) {
+
+  if (PUSH_TO_AMAZON ) {
+    file <- str_replace_all(file, " ", "_")
+    put_object(file = file,
+               bucket = bucket,
+               multipart = FALSE,
+               acl = "public-read",
+               headers = list(),
+               verbose = TRUE,
+               show_progress = FALSE)
+  }
+
+}
+
+# reads in population file date and does some formating
+get_population <- function() {
+
+  if ( ! USE_JHU_POPS ) {
+    # population data from census bureau
+    population <- read.csv("https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/counties/totals/co-est2019-alldata.csv")
+
+    st_pops <- read.csv("https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/national/totals/nst-est2019-alldata.csv")
+
+    for ( r in 1 : nrow(population)) {
+      if ( population[r, "STNAME"] == "Alaska" ) {
+        c <- population[r, "CTYNAME"]
+        c_out <- c
+        c_out <- str_remove(c_out, " Area")
+        c_out <- str_remove(c_out, " Borough")
+        c_out <- str_remove(c_out, " City")
+        c_out <- str_remove(c_out, " Municipality")
+        c_out <- str_remove(c_out, " and")
+        c_out <- str_remove(c_out, " Census")
+        if ( c_out == "Lake Peninsula") { c_out <- "Lake and Peninsula" }
+        population[r, "CTYNAME"] <- c_out
+      } else if ( population[r, "STNAME"] == "New Mexico" ) {
+        c <- population[r, "CTYNAME"]
+        c_out <- c
+        if ( c == "Do\xf1a Ana County" ) { c_out <- "Dona Ana County" }
+        population[r, "CTYNAME"] <- c_out
+      }
+    }
+    population$state_ <- tolower(population$STNAME)
+    population$ctyname_ <- tolower(population$CTYNAME)
+  }
+  else {
+    uid_iso_fips_lookup <<- read.csv("https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true")
+  }
+  return(population)
+}
+
+pop_format <- function(pop) {
+  return(format(pop *100000, big.mark=","))
+}
+
+state_pop_txt <- function(s, df) {
+  return(paste(s, " State (pop=", pop_format(df$pop[1]), ")", sep=""))
+}
+
+if(live_mode) {
+  population <- get_population()
+  print(pop_format(.8))
+}
+
+onetime <- function(version = 1.0) {
+
+  # some datasets
+  # 2016 presidential election results, by county
+  if ( ENABLE_RED_BLUE ) {
+    prez_2016 <<- read.csv("https://raw.githubusercontent.com/mkearney/presidential_election_county_results_2016/master/pres.elect16.results.dec9.csv")
+    prez_2020 <<- read.csv("https://github.com/kjhealy/us_elections_2020_csv/raw/master/results_current.csv")
+  }
+
+  if ( ! USE_JHU_POPS ) {
+    county_transformations <<- read.csv("https://docs.google.com/uc?id=15pWPcFsrx-MhzXdzqFtVOGhr2swooRvE&export=download")
+  }
+  # don't use this anywhere
+  #steve_usa <<- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSrt-fhmYSJ4BUiombXneAsK9BRLyRxwqxxu47pkpiFP6ZgRrXwm4V7frh_rtwPqQAIrCm4RrT8TFkM/pub?gid=931635221&single=true&output=csv")
+
+  # info on wa counties
+  wa_counties <<- read.csv("https://docs.google.com/uc?id=19OOGc3UmvN77oqPP9JeRKFbGSzuxzxRQ&export=download")
+
+  # old filesystme grabs
+  #  county_transformations <<- read.csv("/Users/willey/Google\ Drive/data/county_transformations.csv")
+  #  wa_counties <<- read.csv("/Users/willey/Google\ Drive/data/wa_counties.csv")
+
+}
+
+newday <- function(version = 3.0) {
+  # reset end date
+  plot_end_date <<- format(Sys.Date(), "%Y/%m/%d")
+
+  usa_confirmed <<- read.csv("https://github.com/CSSEGISandData//COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv?raw=true")
+  global_confirmed <<- read.csv("https://github.com/CSSEGISandData//COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv?raw=true")
+
+  # clean-up global-confirmed
+  global_confirmed[c("Lat", "Long")] <- NULL
+  global_confirmed_t <<- pivot_longer(global_confirmed,
+                                      cols = starts_with('X'),
+                                      names_to = "dates",
+                                      values_to = "cases",
+                                      values_drop_na = FALSE)
+  global_confirmed_t$dates <<- as.Date(global_confirmed_t$dates,  format="X%m.%d.%y")
+  global_confirmed_t$admin0 <<- tolower(global_confirmed_t$Country.Region)
+  admin0_t <<- global_confirmed_t %>% group_by(Country.Region, dates) %>% summarise(cases=sum(cases))
+
+  uc <- usa_confirmed
+
+  # remove soem junk
+  uc[c('UID', 'iso2', "iso3", "code3", "FIPS", "Country_Region", "Lat", "Long_", "Combined_Key")] <- NULL
+  usa_confirmed_t <<- pivot_longer(uc, cols = starts_with('X'), names_to = "dates", values_to = "cases", values_drop_na = FALSE)
+  usa_confirmed_t$dates <<- as.Date(substr(usa_confirmed_t$dates,2,20),
+                                      format="%m.%d.%y")
+  usa_confirmed_t$state_ <<- tolower(usa_confirmed_t$Province_State)
+  usa_states <<- usa_confirmed_t %>% group_by(Province_State, dates) %>% summarise(cases=sum(cases))
+  #usa_admin1 <- usa_states
+
+  # trying this out
+  #states_wide <- pivot_wider(usa_states, id_cols=dates,
+  #                             names_from = Province_State,
+  #                             values_from = cases)
+
+}
+
+if(live_mode) {
+  onetime(version = version)
+  newday(version = version)
+}
+
+# cleans-up some goofy county names - maybe only need this with US Census pops
+get_full_county_name <- function(state="not alaska",  county){
+  if ( state == "Alaska") {
+    full_county_name <- county
+  } else if ( state == "District of Columbia") {
+    full_county_name <- "District of Columbia"
+  } else if ( state == "Louisiana") {
+    full_county_name = paste(county, "Parish")
+  } else {
+    mystate <- state
+    trans <- subset(county_transformations, state==mystate & county_in == county)
+    if ( nrow(trans) == 1 ) {
+      full_county_name <- trans$county_out
+    } else {
+      full_county_name = paste(county, "County")
+    }
+  }
+  return(full_county_name)
+}
+
+if(live_mode) {
+  print(get_full_county_name("Virginia", "Covington"))
+  print(get_full_county_name("Alabama", "Covington"))
+}
+
+get_pop <- function(state = NULL,
+                    county = NULL,
+                    country = NULL,
+                    province_state = NULL,
+                    admin2 = NULL) {
+
+  if ( ! is.null(province_state) ) {
+    state <- province_state
+  }
+  if ( ! is.null(admin2) ) {
+    county <- admin2
+  }
+  admin2 <- county
+  province_state <- state
+  if ( USE_JHU_POPS ) {
+    return(get_pop_jhu(country = country,
+                       province_state = province_state,
+                       admin2 = admin2))
+  }
+  else {
+    if ( is_null(county) ) {
+      county <- "Total"
+    }
+    return(get_pop_uscensus(state, county))
+  }
+}
+
+# returns population in 100,000's
+get_pop_uscensus <- function(state, county = "Total") {
+
+#  if ( state == "District Of Columbia" ) {
+#    state <- "District of Columbia"
+#  }
+
+  state <- tolower(state)
+
+  # if request is for the whole state the county = state and county # == 0
+  if ( county == "Total" ) {
+    print(paste("going to get pop for: ", state, sep=""))
+    row <- subset(population, state_==state &
+                  ctyname_ == state &
+                  COUNTY == 0)
+  }
+  else {
+    pop_county_name = tolower(get_full_county_name(tolower(state),
+                                                   tolower(county)))
+    print(paste("going to get pop for: ", county, " (", pop_county_name, ") ", state, sep=""))
+    row <- subset(population, state_ ==state &
+                  ctyname_ == pop_county_name &
+                  COUNTY > 0)
+  }
+
+  if ( nrow(row) != 1 ) {
+    print(paste("FAIL: can't get pop for", county, state))
+    return(0)
+  }
+  pop <- row$POPESTIMATE2019
+  hundy <- as.double(round(pop / 100000,3))
+  return(hundy)
+}
+
+get_pop_jhu <- function(province_state = "",
+                        country = "US",
+                        admin2 = "") {
+
+  # legacy
+  if ( is.null(admin2) ) {
+    admin2 <- ""
+  }
+  # legacy
+  if ( admin2 == "Total" ) {
+    admin2 <- ""
+  }
+  if ( is.null(country) ) {
+    country <- "US"
+  }
+  if ( is.null(province_state) ) {
+    province_state <- ""
+  }
+
+  cat("get_pop_jhu: going to get pop for: country:", country,
+      "state:", province_state,
+      "admin2:", admin2, "\n")
+
+  row <- subset(uid_iso_fips_lookup,
+                  grepl(country, Country_Region, ignore.case=TRUE) &
+                  grepl(province_state, Province_State, ignore.case=TRUE) &
+                  grepl(admin2, Admin2, ignore.case=TRUE))
+
+  hundy = row$Population[1] / 100000.0
+
+  if ( is.na(hundy) ) {
+    hundy <- 0
+  }
+
+  return(hundy)
+}
+
+if(live_mode) {
+  orig_pop_method <- USE_JHU_POPS
+
+  for ( binary in c(TRUE, FALSE) ) {
+    print(binary)
+    USE_JHU_POPS <- binary
+
+    print(get_pop("Maryland", "Baltimore City"))
+    print(get_pop("Washington", "Island"))
+    print(get_pop("Washington", "island"))
+    print(get_pop("Washington"))
+    print(get_pop("Washington", "Total"))
+    print(get_pop("Alabama"))
+    print(get_pop("District Of Columbia"))
+    print(get_pop("District of Columbia"))
+    print(get_pop("district of columbia"))
+    print(get_pop("Puerto Rico"))
+    print(get_pop("american samoa"))
+    print(get_pop(country = "india"))
+    print(get_pop(country = "Canada"))
+    print(get_pop(state = "Washington", county = "Columbia"))
+    print(get_pop("Diamond Princess"))
+  }
+  USE_JHU_POPS <- orig_pop_method
+}
+
+# old function where we only returned winning prez candidate
+get_2016_prez <- function(state, county) {
+  mycounty <- get_full_county_name(state, county)
+  if (state == "Alaska") {
+    hill_trump <- subset(prez_2016, state.name==state)$lead[1]
+  } else if (state == "District of Columbia") {
+    hill_trump <- subset(prez_2016, county==county)$lead[1]
+  } else {
+    hill_trump <- subset(prez_2016, state.name==state & county == mycounty)$lead[1]
+  }
+  if ( is.na(hill_trump)) {
+    return("unkown")
+  } else {
+    return(hill_trump)
+  }
+}
+
+get_redblue <-  function(state, county) {
+  get_redblue2016(state, county)
+}
+
+get_redblue2016 <- function(state, county) {
+  red_cand <- "Donald Trump"
+  blue_cand <- "Hillary Clinton"
+  if (state == "Louisiana") {
+    mycounty <- paste(county, "Parish")
+  } else {
+    mycounty <- get_full_county_name(state, county)
+  }
+
+  if (state == "District of Columbia") {
+    red_pct_t <- subset(prez_2016, county==state &
+                          cand==red_cand)$pct[1]
+    blue_pct_t <- subset(prez_2016, county==state &
+                           cand==blue_cand)$pct[1]
+
+  } else if (state == "Alaska" || state == "District of Columbia") {
+    red_pct_t <- subset(prez_2016, state.name==state &
+                          cand==red_cand)$pct[1]
+    blue_pct_t <- subset(prez_2016, state.name==state &
+                           cand==blue_cand)$pct[1]
+
+  } else {
+    red_pct_t <- subset(prez_2016, state.name==state &
+                          county==mycounty &
+                          cand==red_cand)$pct[1]
+    blue_pct_t <- subset(prez_2016, state.name==state &
+                           county==mycounty &
+                           cand==blue_cand)$pct[1]
+  }
+  #  print(paste(red_pct_t, blue_pct_t, ","))
+  red_pct <- red_pct_t / (red_pct_t + blue_pct_t)
+  blue_pct <- blue_pct_t / (red_pct_t + blue_pct_t)
+  return(c(red_pct, blue_pct))
+}
+
+if(live_mode) {
+  print(paste("Washington", "Island", get_redblue("Washington", "Island")))
+  print(paste("Washington", "Columbia", get_redblue("Washington", "Columbia")))
+  print(paste("Washington", "Garfield", get_redblue("Washington", "Garfield")))
+  print(paste("Alaska", "bumfuck", get_redblue("Alaska", "bumfuck")))
+  print(paste("Louisiana", "Terrebonne", get_redblue("Louisiana", "Terrebonne")))
+  print(paste("District of Columbia", "dc", get_redblue("District of Columbia", "dc")))
+}
+
+
+make_plot <- function(df,
+                      loc_txt,
+                      main_txt = NULL,
+                      cases_per_hundy = FALSE,
+                      cases = FALSE,
+                      daily_cases = FALSE,
+                      file_base = NULL) {
+
+  if ( USE_GGPLOT ) {
+    return ( make_plot_gg(df = df,
+                        loc_txt = loc_txt,
+                        main_txt = main_txt,
+                        cases_per_hundy = cases_per_hundy,
+                        cases = cases,
+                        daily_cases = daily_cases,
+                        file_base = file_base) )
+  }
+  else {
+    return ( make_plot_base(df = df,
+                          loc_txt = loc_txt,
+                          main_txt = main_txt,
+                          cases_per_hundy = cases_per_hundy,
+                          cases = cases,
+                          daily_cases = daily_cases,
+                          file_base = file_base) )
+  }
+}
+
+make_plot_base <- function(df,
+                      loc_txt,
+                      main_txt = NULL,
+                      cases_per_hundy = TRUE,
+                      cases = TRUE,
+                      daily_cases = FALSE,
+                      file_base = NULL) {
+
+  # maybe bail
+  if ( is.null(df) ) {
+    return(NULL)
+  }
+
+  # maybe override the global cumulative_c19_cases_txt
+  if ( !is.null(main_txt) ) {
+    cumulative_c19_cases_txt = main_txt
+  }
+
+  if ( cases_per_hundy ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    plot(df$dates, df$cases_per_hundy,
+         main = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
+         ylab = ylab_cases_hundy_txt,
+         xlab = "Dates",
+         type = 'l',
+         col = "purple",
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+    mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+  }
+
+  if ( cases ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    plot(df$dates, df$cases,
+         main = paste(loc_txt, cumulative_c19_cases_txt),
+         ylab = ylab_cases_txt,
+         xlab = "Dates",
+         type = 'l',
+         col = "purple",
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+    mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+  } # if cases
+
+  if ( daily_cases ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_daily_cases", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    maxy = max(df$daily_cases)
+    plot(df$dates, df$daily_cases,
+         main = paste(loc_txt, daily_c19_cases_txt),
+         ylab = ylab_daily_cases_txt,
+         ylim = c(0,maxy),
+         xlab = "Dates",
+         type = 'l',
+         col = "mediumpurple1",
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+    lines(df$dates, df$daily_cases_avrg14d, col="red")
+    legend("topleft",
+           legend=c("Daily", "14 Day Average"),
+           col=c("mediumpurple1", "red"),
+           lty=1)
+    mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+  } # if daily cases
+}
+
+make_plot_gg <- function(df,
+                      loc_txt,
+                      main_txt = NULL,
+                      cases_per_hundy = TRUE,
+                      cases = TRUE,
+                      daily_cases = FALSE,
+                      file_base = NULL) {
+
+  # maybe bail
+  if ( is.null(df) ) {
+    return(NULL)
+  }
+
+  # maybe override the global cumulative_c19_cases_txt
+  if ( !is.null(main_txt) ) {
+    cumulative_c19_cases_txt = main_txt
+  }
+
+  if ( cases_per_hundy ) {
+
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    p <- ggplot(data=df, aes(x=dates, y=cases_per_hundy)) +
+      geom_line(colour="purple") +
+      labs(title = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+#            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5))
+    print(p)
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+
+  }
+
+  if ( cases ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    p<- ggplot(data=df, aes(x=dates, y=cases)) +
+        geom_line(colour="purple") +
+        labs(title = paste(loc_txt, cumulative_c19_cases_txt),
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_cases_txt) +
+        theme_bw() +
+        theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5))
+
+    print(p)
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+  } # if cases
+
+  if ( daily_cases ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_daily_cases", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+
+    p<- ggplot(data=df, aes(dates)) +
+      geom_line(aes(y = daily_cases_per_hundy, colour="Daily"), size=0.3) +
+      scale_color_manual(values = c(
+        '14 Day Average / Sum' = 'red',
+        'Daily' = 'mediumpurple1')) +
+      labs(title = paste(loc_txt, main_daily_cases_hundy_txt),
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
+      scale_x_date(
+        name="Dates"
+      ) +
+      scale_y_continuous(
+        name =  ylab_daily_cases_hundy_txt,
+        limits = c(0,max(df$daily_cases_per_hundy)),
+        sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")
+      ) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black")) +
+      geom_line(aes(y = daily_cases_per_hundy_avrg14d, colour="14 Day Average / Sum"))
+
+    print(p)
+
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+  } # if daily cases
+}
+
+multi_make_plot <- function(df,
+                            multi_cats,
+                            loc_txt = "loc_txt",
+                            main_txt = NULL,
+                            cases_per_hundy = TRUE,
+                            cases = TRUE,
+                            daily_cases = FALSE,
+                            file_base = NULL) {
+
+  p<- ggplot(data=df, aes(dates)) +
+    scale_color_manual(values = c(
+      '14 Day Average' = 'red',
+      'Daily' = 'mediumpurple1')) +
+ #   ylim(0,max(df$daily_cases)) +
+    labs(title = paste(loc_txt, daily_c19_cases_txt),
+         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+         x = "Dates",
+         y = ylab_daily_cases_txt) +
+    theme_bw() +
+    theme(panel.grid.minor = element_blank(),
+          #            panel.grid.major = element_blank(),
+          panel.background = element_blank(),
+          plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          plot.caption = element_text(hjust = 0.5),
+          legend.title = element_blank(),
+          legend.position = c(0.35, 0.87),
+          legend.background = element_rect(linetype="solid",
+                                           size = 0.2,
+                                           colour ="black"))
+  for ( cat in multi_cats ) {
+    p <- p + geom_line(aes(y = cat, colour="Daily"), size=0.3)
+  }
+
+
+#    geom_line(aes(y = daily_cases_avrg14d, colour="14 Day Average"))
+
+  print(p)
+
+  if ( ! is.null(file_base) ) {
+    dev.off()
+  }
+
+} # multi_make_plot
+
+
+if ( live_mode ) {
+  ic_cases <- get_admin2("Washington",
+                         county = "Island",
+                         version = 3)
+  make_plot(df = ic_cases,
+            loc_txt = "bongo",
+                        cases_per_hundy = TRUE,
+                        cases = TRUE,
+                        daily_cases = TRUE)
+
+}
+
+build_cols <- function(df, pop) {
+
+  if ( pop > 0 ) {
+    df$pop <- pop
+    df$cases_per_hundy <- df$cases / pop
+    # ifelse(df$cases_per_hundy < 0, 0, df$cases_per_hundy)
+  } else {
+    df$pop <- 0
+    df$cases_per_hundy <- 0
+  }
+
+  # get the daily deltas
+  df$daily_cases <- ave(df$cases, FUN = function(x) c(0, diff(x)))
+  df$daily_cases_per_hundy <- df$daily_cases / pop
+  #make na's zero (first daily starts as an NA)
+  #  df$daily_cases[is.na(df$daily_cases)] <- 0
+
+  # rolling averages
+  df$daily_cases_avrg7d <- zoo::rollmean(df$daily_cases, k = 7, fill = NA, align="right")
+  df$daily_cases_avrg7d[is.na(df$daily_cases_avrg7d)] <- 0
+  df$daily_cases_avrg14d <- zoo::rollmean(df$daily_cases, k = 14, fill = NA, align="right")
+  df$daily_cases_avrg14d[is.na(df$daily_cases_avrg14d)] <- 0
+
+  df$daily_cases_sum7d <- zoo::rollsum(df$daily_cases, k = 7, fill = NA, align="right")
+  df$daily_cases_sum7d[is.na(df$daily_cases_avrg7d)] <- 0
+  df$daily_cases_sum14d <- zoo::rollsum(df$daily_cases, k = 14, fill = NA, align="right")
+  df$daily_cases_sum14d[is.na(df$daily_cases_avrg14d)] <- 0
+
+  if ( pop > 0 ) {
+    df$daily_cases_per_hundy_avrg7d <- df$daily_cases_avrg7d / pop
+    df$daily_cases_per_hundy_avrg14d <- df$daily_cases_avrg14d / pop
+    df$daily_cases_per_hundy_sum7d <- df$daily_cases_sum7d / pop
+    df$daily_cases_per_hundy_sum14d <- df$daily_cases_sum14d / pop
+    #ifelse(df$cases_per_hundy < 0, 0, df$cases_per_hundy)
+  } else {
+    df$daily_cases_per_hundy_avrg7d <- 0
+    df$daily_cases_per_hundy_avrg14d <- 0
+    df$daily_cases_per_hundy_sum7d <- 0
+    df$daily_cases_per_hundy_sum14d <- 0
+  }
+
+  if ( ENABLE_RED_BLUE ) {
+    red_blue_pcts <- get_redblue(state, county)
+
+    df$red_cases <- df$cases * red_blue_pcts[1]
+    df$red_daily_cases <-
+      df$daily_cases * red_blue_pcts[1]
+
+    df$red_daily_cases_avrg7d <-
+      df$daily_cases_avrg7d * red_blue_pcts[1]
+    df$red_daily_cases_avrg14d <-
+      df$daily_cases_avrg14d * red_blue_pcts[1]
+    df$red_daily_cases_per_hundy_avrg7d <-
+      df$daily_cases_per_hundy_avrg7d * red_blue_pcts[1]
+    df$red_daily_cases_per_hundy_avrg14d <-
+      df$daily_cases_per_hundy_avrg14d * red_blue_pcts[1]
+
+    df$red_pop <- df$pop * red_blue_pcts[1]
+    df$red_cases_per_hundy <- df$cases_per_hundy * red_blue_pcts[1]
+    ifelse(df$red_cases_per_hundy < 0, 0, df$red_cases_per_hundy)
+
+    df$blue_cases <- df$cases * red_blue_pcts[2]
+    df$blue_daily_cases <-
+      df$daily_cases * red_blue_pcts[2]
+
+    df$blue_daily_cases_avrg7d <-
+      df$daily_cases_avrg7d * red_blue_pcts[1]
+    df$blue_daily_cases_avrg14d <-
+      df$daily_cases_avrg14d * red_blue_pcts[1]
+    df$blue_daily_cases_per_hundy_avrg7d <-
+      df$daily_cases_per_hundy_avrg7d * red_blue_pcts[1]
+    df$blue_daily_cases_per_hundy_avrg14d <-
+      df$daily_cases_per_hundy_avrg14d * red_blue_pcts[1]
+
+    df$blue_pop <- df$pop * red_blue_pcts[2]
+    df$blue_cases_per_hundy <- df$cases_per_hundy * red_blue_pcts[2]
+    ifelse(df$blue_cases_per_hundy < 0, 0, df$blue_cases_per_hundy)
+  } #enable red blue
+
+  return(df)
+}
+
+# selects a county
+get_admin2 <- function(state, county, version = 3.0) {
+
+  print(paste("in get_admin2(", county, "), version is", version))
+
+  if ( county == "Total") {
+      county_cases_t <- as.data.frame(subset(usa_states,
+                                              Province_State==state))
+  }
+  else {
+      # convert into a data frame instead of a tuple.  tuple has big performance impacts down the road
+      county_cases_t <- as.data.frame(subset(usa_confirmed_t, Admin2==county & Province_State==state))
+  }
+
+  pop <- get_pop(state, county, country="US")
+
+  df <- build_cols(county_cases_t, pop)
+
+  return(df)
+
+}
+
+
+if(live_mode) {
+  b_ci_cases <- get_admin2("Maryland", "Baltimore City", version = version)
+  make_plot(b_ci_cases, "bongo", "bingo")
+  ic_cases <- get_admin2("Washington", "Island")
+  ic_cases <- get_admin2("Washington", "Island", version = 2.0)
+
+  make_plot(loc_txt = "Washington", "Island", df = ic_cases, daily_cases = TRUE, file_base = NULL)
+  kc_cases <- get_admin2("Washington", "King")
+  make_plot(loc_txt = "Washington", "King", df = kc_cases, daily_cases = TRUE, file_base = NULL)
+  cc_cases <- get_admin2("Washington", "Columbia")
+  ac_cases <- get_admin2("Washington", "Adams")
+  wa_cases <- get_admin2("Washington", "Total", version = 3.0)
+
+  gc_cases <- get_admin2("Washington", "Garfield")
+  tc_cases <- get_admin2("Louisiana", "Terrebonne")
+  junk_new <- get_admin2("Virginia", "Lunenburg", version = 2.0)
+
+}
+
+write_csv_file <- function(df, file_base) {
+  write.csv(df, paste(file_base, ".csv", sep=""))
+}
+
+make_redblue_plot <- function(df, loc_txt, main_txt = NULL,
+                              cases_per_hundy=TRUE, cases = TRUE,
+                              file_base = NULL) {
+
+  # maybe bail
+  if ( is.null(df) ) {
+    return(NULL)
+  }
+
+  # maybe override the global cumulative_c19_cases_txt
+  if ( !is.null(main_txt) ) {
+    cumulative_c19_cases_txt = main_txt
+  }
+
+  max_red <- 0
+  max_blue <- 0
+  try(max_red <- max(df$red_cases), silent = TRUE)
+  try(max_blue <- max(df$blue_cases), silent = TRUE)
+  max_y <- ifelse(max_red > max_blue, max_red, max_blue)
+
+  max_red_cases_per_hundy <- 0
+  max_blue_cases_per_hundy <- 0
+  try(max_red_cases_per_hundy <- max(df$red_cases_per_hundy, 1), silent = TRUE)
+  try(max_blue_cases_per_hundy <- max(df$blue_cases_per_hundy, 1), silent = TRUE)
+  max_y_cases_per_hundy <- ifelse(max_red_cases_per_hundy > max_blue_cases_per_hundy,
+                            max_red_cases_per_hundy, max_blue_cases_per_hundy)
+#  print(max(df$red_per_hund, 1))
+#  print(paste(max_red_cases_per_hundy, max_blue_cases_per_hundy,max_y_cases_per_hundy, sep=", "))
+  if ( cases_per_hundy) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+    }
+    plot(df$dates, df$red_cases_per_hundy,
+         main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt, hundy_txt),
+         ylab = ylab_cases_hundy_txt,
+         xlab = "Dates",
+         type = 'l',
+         col = "red",
+         ylim = c(0, max_y_cases_per_hundy),
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+    if ( max_blue_cases_per_hundy > 0 ) {
+      lines(df$dates, df$blue_cases_per_hundy, col = "blue")
+    }
+    if ( ! is.null(file_base) ) {
+      dev.off()
+    }
+
+  }
+
+  if ( cases ) {
+    if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+#      print("on 2")
+    }
+    plot(df$dates, df$red_cases,
+         main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt),
+         ylab = ylab_cases_txt,
+         xlab = "Dates",
+         type = 'l',
+         col = "red",
+         ylim = c(0, max_y),
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+    if ( max_blue > 0 ) {
+      lines(df$dates, df$blue_cases, col = "blue")
+    }
+    if ( ! is.null(file_base) ) {
+      dev.off()
+#      print("off 2")
+    }
+
+  }
+
+}
+
+
+# var                           source          aggregate function
+# pop                           get_pop         addition
+# cases                         something       addition
+# daily_cases                   something       addition
+# cases_per_hundy               division        division
+# daily_cases_per_hundy         division        division
+# daily_cases_avgr7             rollmean        rollmean
+# daily_cases_avgr7             rollmean        rollmean
+# daily_cases_per_hundy_avrg7   division        division
+# daily_cases_per_hundy_avrg14  division        division
+#
+aggregate_dfs <- function(in_df, new_df, version = 1.0) {
+
+#    print(paste("in aggregate_dfs", in_df[nrow(in_df),"cases"], new_df[nrow(in_df),"cases"]))
+#    print(paste("in aggregate_dfs", in_df[1,"pop"], new_df[1,"pop"]))
+
+    for ( r in 1 : nrow(in_df)) {
+      #      print(paste("in:", in_df[r, "pop"], "new:", new_df[r, "pop"]))
+      in_df[r, "pop"] <- in_df[r, "pop"] + new_df[r, "pop"]
+      #      print(paste("combined:", in_df[r, "pop"]))
+
+      in_df[r, "cases"] <- in_df[r, "cases"] + new_df[r, "cases"]
+      in_df[r, "cases_per_hundy"] <- in_df[r, "cases"] / in_df[r, "pop"]
+      in_df[r, "daily_cases"] <- in_df[r, "daily_cases"] +
+        new_df[r, "daily_cases"]
+      in_df[r, "daily_cases_per_hundy"] <- in_df[r, "daily_cases"] / in_df[r, "pop"]
+
+#      print(paste("where the fun starts", r))
+      if ( r < 7 ) {
+        in_df[r, "daily_cases_avrg7d"] <- 0
+        in_df[r, "daily_cases_per_hundy_avrg7d"] <- 0
+        in_df[r, "daily_cases_sum7d"] <- 0
+        in_df[r, "daily_cases_per_hundy_sum7d"] <- 0
+      }
+      else {
+#        print(in_df[(r-6):r, "daily_cases"])
+#        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left'))
+#        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[0])
+        in_df[r, "daily_cases_avrg7d"] <- zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[1]
+        in_df[r, "daily_cases_per_hundy_avrg7d"] <- in_df[r, "daily_cases_avrg7d"] / in_df[r, "pop"]
+        in_df[r, "daily_cases_sum7d"] <- zoo::rollsum(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[1]
+        in_df[r, "daily_cases_per_hundy_sum7d"] <- in_df[r, "daily_cases_sum7d"] / in_df[r, "pop"]
+      }
+      if ( r < 14 ) {
+        in_df[r, "daily_cases_avrg14d"] <- 0
+        in_df[r, "daily_cases_per_hundy_avrg14d"] <- 0
+        in_df[r, "daily_cases_sum14d"] <- 0
+        in_df[r, "daily_cases_per_hundy_sum14d"] <- 0
+      }
+      else {
+        in_df[r, "daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align='left')[1]
+        in_df[r, "daily_cases_per_hundy_avrg14d"] <- in_df[r, "daily_cases_avrg14d"] / in_df[r, "pop"]
+        in_df[r, "daily_cases_sum14d"] <- zoo::rollsum(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align='left')[1]
+        in_df[r, "daily_cases_per_hundy_sum14d"] <- in_df[r, "daily_cases_sum14d"] / in_df[r, "pop"]
+      }
+
+
+#      in_df[r, "daily_cases_avrg7d"] <- in_df[r, "daily_cases_avrg7d"] +
+#        new_df[r, "daily_cases_avrg7d"]
+#      in_df[r, "daily_cases_avrg14d"] <- in_df[r, "daily_cases_avrg14d"] +
+#        new_df[r, "daily_cases_avrg14d"]
+#      in_df[r, "daily_cases_per_hundy_avrg7d"] <- in_df[r, "daily_cases_per_hundy_avrg7d"] +
+#        new_df[r, "daily_cases_per_hundy_avrg7d"]
+#      in_df[r, "daily_cases_per_hundy_avrg14d"] <- in_df[r, "daily_cases_per_hundy_avrg14d"] +
+#        new_df[r, "daily_cases_per_hundy_avrg14d"]
+
+
+#      print("kinda done")
+
+      if ( ENABLE_RED_BLUE ) {
+
+      in_df[r, "red_cases"] <- in_df[r, "red_cases"] + new_df[r, "red_cases"]
+#      print(r)
+      if ( r < 8 ) {
+        in_df[r, "red_daily_cases_avrg7d"] <- 0
+        in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- 0
+      }
+      else {
+#        in_df[r, "red_daily_cases_avrg7d"] <- zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[0]
+#        in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- in_df[r, "red_daily_cases_avrg7d"] / in_df[r, "pop"]
+      }
+      if ( r < 15 ) {
+        in_df[r, "red_daily_cases_avrg14d"] <- 0
+        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- 0
+      }
+      else {
+#        in_df[r, "red_daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align='left')[0]
+#        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] / in_df[r, "pop"]
+      }
+
+#      in_df[r, "red_daily_cases_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] +
+#        new_df[r, "red_daily_cases_avrg14d"]
+
+      in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- in_df[r, "red_daily_cases_per_hundy_avrg7d"] +
+        new_df[r, "red_daily_cases_per_hundy_avrg7d"]
+      in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- in_df[r, "red_daily_cases_per_hundy_avrg14d"] +
+        new_df[r, "red_daily_cases_per_hundy_avrg14d"]
+
+
+      in_df[r, "red_pop"] <- in_df[r, "red_pop"] + new_df[r, "red_pop"]
+      in_df[r, "red_cases_per_hundy"] <- in_df[r, "red_cases_per_hundy"] +
+        new_df[r, "red_cases_per_hundy"]
+      in_df[r, "blue_cases"] <- in_df[r, "blue_cases"] + new_df[r, "blue_cases"]
+
+      in_df[r, "blue_daily_cases_avrg7d"] <- in_df[r, "blue_daily_cases_avrg7d"] +
+        new_df[r, "blue_daily_cases_avrg7d"]
+      in_df[r, "blue_daily_cases_avrg14d"] <- in_df[r, "blue_daily_cases_avrg14d"] +
+        new_df[r, "blue_daily_cases_avrg14d"]
+      in_df[r, "blue_daily_cases_per_hundy_avrg7d"] <- in_df[r, "blue_daily_cases_per_hundy_avrg7d"] +
+        new_df[r, "blue_daily_cases_per_hundy_avrg7d"]
+      in_df[r, "blue_daily_cases_per_hundy_avrg14d"] <- in_df[r, "blue_daily_cases_per_hundy_avrg14d"] +
+        new_df[r, "blue_daily_cases_per_hundy_avrg14d"]
+
+      in_df[r, "blue_pop"] <- in_df[r, "blue_pop"] + new_df[r, "blue_pop"]
+      in_df[r, "blue_cases_per_hundy"] <- in_df[r, "blue_cases_per_hundy"] +
+        new_df[r, "blue_cases_per_hundy"]
+      }
+    } # enable red blue
+
+    return(in_df)
+
+}
+
+if(live_mode) {
+
+}
+
+
+get_admin1 <- function(admin1,
+                      admin0 = "US",
+                      version = 3.0) {
+
+  cat("in get_admin1, state:", admin1, "country:", admin0, "version:", version, "\n")
+
+
+  if ( admin0 == "US" ) {
+    state_cases_t <- as.data.frame(subset(usa_states, grepl(admin1, Province_State, ignore.case = TRUE)))
+  }
+  else  {
+    country <- admin0  #  ARRRG I don't understand why this is needed!!!!
+    state_cases_t <- as.data.frame(subset(global_confirmed_t,
+                                          grepl(country,
+                                                Country.Region,
+                                                ignore.case = TRUE) &
+                                          grepl(admin1,
+                                                Province.State,
+                                                ignore.case = TRUE)))
+  }
+
+
+  pop <- get_pop(admin1, country=admin0)
+
+  df <- build_cols(state_cases_t, pop)
+
+  return(df)
+
+}
+
+
+if(live_mode) {
+  wa_cases <<- get_admin1("Washington", version = 1.0)
+  make_plot(wa_cases, "bongo", cases = TRUE)
+  dp_cases <<- get_admin1("Diamond Princess")
+  ca_bc_cases <<- get_admin1("British Columbia", admin0 = "Canada")
+  make_plot(ca_bc_cases, "bongo", daily_cases = TRUE)
+  dc_cases <<- get_admin1("District of Columbia", version = 3.0)
+  write.csv(wa_cases, "wa_cases.csv")
+  pr_cases <- get_admin1("Puerto Rico")
+}
+
+get_admin0 <- function(country_in, version = 3.0) {
+
+  print(paste("in get_admin0:", country_in, "version:", version))
+
+  # convert into a data frame instead of a tuple.  tuple has big performance impacts down the road
+  country_cases_t <- as.data.frame(subset(admin0_t, grepl(
+                          country_in, Country.Region, ignore.case = TRUE)))
+
+  pop <- get_pop(country = country_in)
+
+  df <- build_cols(country_cases_t, pop)
+
+  return(df)
+
+}
+
+
+mk_state_string <- function(state) {
+  s <- tolower(state)
+  str_replace_all(tolower(s), " ", "_")
+  return(s)
+}
+
+#  usa_cases <- build_all_states(separate = TRUE,
+#                 combined = TRUE,
+#                 keep_dfs = FALSE,
+#                 plot_redblue = FALSE,
+#                 plot_redblue_cases = FALSE,
+#                 plot_wa_and = FALSE,
+#                 push2amazon = TRUE,
+#                 version = version)
+build_all_states <- function(combined = TRUE,
+                             keep_dfs = FALSE,
+#                             plot_redblue = FALSE,
+#                             plot_redblue_cases = FALSE,
+                             plot_wa_and = FALSE,
+#                             plot_daily_cases = FALSE,
+#                             plot_cases_per_hundy = FALSE,
+                             plot_state_cases_per_hundy = FALSE,
+                             file_base = NULL,
+                             version = 3.0,
+                             push2amazon = FALSE) {
+
+  if( exists("usa_df" )) { remove(usa_df, envir = .GlobalEnv) }
+
+  if ( plot_wa_and ) {
+    wa_cases <- get_admin1("Washington", version=version)
+    max_wa_y = max(wa_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+    wa_s_txt <- paste("Washington (pop=", pop_format(wa_cases$pop[1]), ")", sep="")
+  }
+
+  states <- unique(sort(usa_confirmed$Province_State))
+
+  for ( state in states ) {
+    print(paste("state is", state))
+    new_df <- get_admin1(state, version = version)
+
+    if( is.null(new_df) ) {
+      next
+    }
+
+    if ( keep_dfs ) {
+        st_string <- mk_state_string(state)
+        new_df_name <- paste(st_string, "_df", sep="")
+        assign(new_df_name, new_df, envir = .GlobalEnv)
+    }
+
+    if ( combined ) {
+        if( exists("usa_df" )) {
+          usa_df <- aggregate_dfs(usa_df,new_df)
+        }
+        else {
+          usa_df <- new_df
+        }
+    }
+
+    if ( plot_state_cases_per_hundy ) {
+      file_base <- str_replace_all(tolower(state), " ", "_")
+      make_plot(new_df,
+                loc_txt = state,
+                cases_per_hundy = TRUE,
+                file_base = file_base)
+      if ( push2amazon ) {
+        filename <- paste(file_base, "cases_per_hundy.jpg", sep="_")
+        file_to_bucket(filename)
+      }
+    }
+
+    if ( plot_wa_and ) {
+      # multiple counties 14 day
+      filename <- paste("wa_and_", tolower(state), ".jpg", sep="")
+      filename <- str_replace_all(filename, " ", "_")
+
+      jpeg(filename = filename,
+           width = plot_file_width,
+           height = plot_file_height)
+
+      if ( USE_GGPLOT == FALSE ) {
+        max_new_y = max(new_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+        ifelse(max_wa_y > max_new_y, maxy <- max_wa_y, maxy <- max_new_y)
+        s_txt <- paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep="")
+
+        plot(new_df$dates, new_df$daily_cases_per_hundy_avrg14d,
+             main = "Daily Cases per 100,000, 14day Average",
+           ylab = ylab_daily_cases_hundy_txt,
+           ylim = c(0,maxy),
+           xlab = "Dates",
+           type = 'l',
+           col = "black",
+           xlim = as.Date(c(plot_start_date, plot_end_date)))
+         lines(wa_cases$dates, wa_cases$daily_cases_per_hundy_avrg14d, col="darkgreen")
+        legend("topleft",
+             legend=c(s_txt, wa_s_txt),
+             col=c("black", "darkgreen"),
+             lty=1)
+        mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+      }
+      else {
+        new_df$wa_cases <- wa_cases$cases
+        new_df$wa_daily_cases <- wa_cases$daily_cases
+        new_df$wa_daily_cases_per_hundy_avrg14d <- wa_cases$daily_cases_per_hundy_avrg14d
+        s_txt <- paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep="")
+
+        p<- ggplot(data=new_df, aes(dates)) +
+        geom_line(aes(y = daily_cases_per_hundy_avrg14d,
+                      colour=s_txt)) +
+        geom_line(aes(y = wa_daily_cases_per_hundy_avrg14d,
+                      colour=wa_s_txt)) +
+        scale_color_manual(values = c('black', 'darkgreen')) +
+        ylim(0,max(new_df$daily_cases_per_hundy_avrg14d)) +
+      labs(title = "Daily Cases per 100,000, 14day Average",
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+
+        print(p)
+      }
+      dev.off()
+      if ( push2amazon ) {
+        file_to_bucket(filename)
+      }
+    }
+
+  } # for all states
+
+# move this out
+#  if ( plot_casesned_daily_cases_per_hundy ) {
+#    file_base <- "USA"
+#    if ( ENABLE_RED_BLUE ) {
+#      make_redblue_plot(usa_df, paste(cumulative_c19_cases_txt), "USA",
+#                    cases_per_hundy = plot_redblue, cases = plot_redblue_cases,
+#                    file_base = file_base)
+#    }
+#
+#    make_plot(usa_df,
+#              paste(cumulative_c19_cases_txt), "USA",
+#              cases_per_hundy = plot_cases_per_hundy,
+#              cases = plot_casesned_cases,
+#              daily_cases = plot_casesned_daily_cases_per_hundy,
+#              file_base = file_base)
+#    if ( push2amazon ) {
+#      file_to_bucket(paste(file_base, "_daily_cases.jpg", sep=""))
+#    }
+#  }
+
+  return(usa_df)
+
+}
+
+if(live_mode) {
+  usa_df <- build_all_states()
+}
+
+wa_east_west <- function(plot_casesned = FALSE,
+                         plot_casesned_cases = FALSE,
+                         file_base = NULL,
+                         version = 2.0) {
+
+  state = "Washington"
+  loc_txt = "Eastern / Western Washington"
+
+  cases <- as.data.frame(subset(usa_confirmed, Province_State == state))
+
+  counties <- unique(sort(cases$Admin2))
+
+  for ( county in counties ) {
+    if (str_detect(county, "Out of ") |
+        county == "" |
+        county == "unkown" |
+        county == "Unassigned" ) {
+      next
+    }
+
+    if ( wa_counties[which(wa_counties$county == county),]$eastwest == "eastern" ) {
+      print("east")
+      east_df <- get_admin2(state = state, county = county)
+      if( exists("combined_east_df" )) {
+        combined_east_df <- aggregate_dfs(combined_east_df,east_df)
+      }
+      else {
+        combined_east_df <- east_df
+      }
+    } else {
+      print("west")
+      west_df <- get_admin2(state = state, county = county)
+      if( exists("combined_west_df" )) {
+        combined_west_df <- aggregate_dfs(combined_west_df,west_df)
+      }
+      else {
+        combined_west_df <- west_df
+      }
+    }
+  }
+
+  if ( ! is.null(file_base) ) {
+      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep="")
+      jpeg(filename = f, width = plot_file_width, height = plot_file_height)
+  }
+
+  plot(combined_east_df$dates, combined_east_df$cases_per_hundy,
+         main = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
+         ylab = ylab_cases_hundy_txt,
+         xlab = "Dates",
+         type = 'l',
+         col = "gold",
+         xlim = as.Date(c(plot_start_date, plot_end_date)))
+  mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+  legend("topleft",
+         legend=c("Eastern", "Western"),
+         col=c("gold", "green"),
+         lty=1)
+  lines(combined_west_df$dates, combined_west_df$cases_per_hundy, col="green")
+  if ( ! is.null(file_base) ) {
+      dev.off()
+  }
+
+  filename = "east_west_daily.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  maxy = max(combined_east_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  east_txt <- paste("East of the Cascades, WA (pop=", pop_format(combined_east_df$pop[1]), ")", sep="")
+  west_txt <- paste("West of the Cascades, WA (pop=", pop_format(combined_west_df$pop[1]), ")", sep="")
+
+  ew_df <- data.frame(dates = combined_east_df$dates,
+                          east = combined_east_df$daily_cases_per_hundy_avrg14d,
+                          west = combined_west_df$daily_cases_per_hundy_avrg14d)
+  p<- ggplot(data=ew_df, aes(dates)) +
+      geom_line(aes(y = west, colour=west_txt)) +
+      geom_line(aes(y = east, colour=east_txt)) +
+      scale_color_manual(values = c('yellow', 'green')) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid", size = 0.2, colour ="black"))
+
+  print(p)
+  dev.off()
+  file_to_bucket(filename)
+
+}
+
+if(live_mode) {
+  a_cases <- get_admin2(state="Washington", county = "Adams")
+  wa_east_west(file_base = "waeastwest")
+}
+
+
+prod <- function(version = 1.0) {
+
+  print(paste("in prod, version is", version))
+
+  if ( USA_ALL ) {
+    usa_cases <- build_all_states(combined = TRUE,
+                                  keep_dfs = FALSE,
+                                  plot_state_cases_per_hundy = TRUE,
+                                  plot_wa_and = TRUE,
+                                  push2amazon = TRUE,
+                                  version = version)
+    make_plot(usa_cases, loc_txt = "USA",
+              cases_per_hundy = TRUE,
+              daily_cases = TRUE, file_base = "USA")
+    file_to_bucket("USA_cases_per_hundy.jpg")
+    file_to_bucket("USA_daily_cases.jpg")
+  }
+
+  ic_cases <- get_admin2("Washington", "Island", version = version)
+  kc_cases <- get_admin2("Washington", "King", version = version)
+  wh_cases <- get_admin2("Washington", "Whitman", version = version)
+  kit_cases <- get_admin2("Washington", "Kitsap", version = version)
+  sno_cases <- get_admin2("Washington", "Snohomish", version = version)
+  ska_cases <- get_admin2("Washington", "Skagit", version = version)
+  b_co_cases <- get_admin2("Maryland", "Baltimore", version = version)
+  b_ci_cases <- get_admin2("Maryland", "Baltimore City", version = version)
+  wic_cases <- get_admin2("Maryland", "Wicomico", version = version)
+  mad_cases <- get_admin2("Virginia", "Madison", version = version)
+  all_cases <- get_admin2("Pennsylvania", "Allegheny", version = version)
+  yak_cases <- get_admin2("Washington", "Yakima", version = version)
+  oc_cases <- get_admin2("California", "Orange", version = version)
+  che_cases <- get_admin2("Washington", "Chelan", version = version)
+  doug_cases <- get_admin2("Washington", "Douglas", version = version)
+  lane_cases <- get_admin2("Oregon", "Lane", version = version)
+  sji_cases <- get_admin2("Washington", "San Juan", version = version)
+  jeff_cases <- get_admin2("Washington", "Jefferson", version = version)
+  india <- get_admin0(country = "india")
+
+  wa_cases <- get_admin1(admin1 = "Washington", version = version)
+  wa_s_txt <- paste("Washington State (pop=", pop_format(wa_cases$pop[1]), ")", sep="")
+  ca_bc_cases <- get_admin1(admin0 = "Canada", admin1 = "British Columbia")
+  ca_bc_txt <- paste("British Columbia (pop=", pop_format(ca_bc_cases$pop[1]), ")", sep="")
+  ca_on_cases <- get_admin1(admin0 = "Canada", admin1 = "Ontario")
+
+  md_cases <<- get_admin1("Maryland", version=version)
+  md_s_txt <- paste("Maryland State (pop=", pop_format(md_cases$pop[1]), ")", sep="")
+
+#  pa_cases <<- get_admin1("Pennsylvania", FALSE, FALSE, FALSE, ",000", version=version)
+#  pa_s_txt <- paste("Pennsylvanit State (pop=", pop_format(pa_cases$pop[1]), sep="")
+#  va_cases <<- get_admin1("Virginia", FALSE, FALSE, FALSE, ",000", version=version)
+#  va_s_txt <- paste("Virginia Commonwealth (pop=", pop_format(va_cases$pop[1]), sep="")
+  or_cases <- get_admin1("Oregon", version=version)
+  or_s_txt <- paste("Oregon State (pop=", pop_format(or_cases$pop[1]), ")", sep="")
+  mt_cases <- get_admin1("Montana",  version=version)
+  mt_s_txt <- paste("Montana State (pop=", pop_format(mt_cases$pop[1]), ")", sep="")
+  ca_cases <- get_admin1("California",  version=version)
+  ca_s_txt <- paste("California State (pop=", pop_format(ca_cases$pop[1]), ")", sep="")
+  mi_cases <- get_admin1("Michigan",  version=version)
+  mi_s_txt <- paste("Michigan State (pop=", pop_format(mi_cases$pop[1]), ")", sep="")
+  id_cases <- get_admin1("Idaho",  version=version)
+  id_s_txt <- paste("Idaho State (pop=", pop_format(id_cases$pop[1]), ")", sep="")
+  hi_cases <- get_admin1("Hawaii")
+  hi_s_txt <- state_pop_txt("Hawaii", hi_cases)
+
+
+  kc_txt <- paste("King County, WA (pop=", pop_format(kc_cases$pop[1]), ")", sep="")
+  yak_txt <- paste("Yakima County, WA (pop=", pop_format(yak_cases$pop[1]), ")", sep="")
+  wh_txt <- paste("Whitman County, WA (pop=", pop_format(wh_cases$pop[1]), ")", sep="")
+  ic_txt <- paste("Island County, WA (pop=", pop_format(ic_cases$pop[1]), ")", sep="")
+  kit_txt <- paste("Kitsap County, WA (pop=", pop_format(kit_cases$pop[1]), ")", sep="")
+  b_co_txt <- paste("Baltimore County, MD (pop=", pop_format(b_co_cases$pop[1]), ")", sep="")
+  b_ci_txt <- paste("Baltimore City, MD (pop=", pop_format(b_ci_cases$pop[1]), ")", sep="")
+  all_txt <- paste("Allegheny County, PA (pop=", pop_format(all_cases$pop[1]), ")", sep="")
+  mad_txt <- paste("Madison County, VA (pop=", pop_format(mad_cases$pop[1]), ")", sep="")
+  sji_txt <- paste("San Juan County, WA (pop=", pop_format(sji_cases$pop[1]), ")", sep="")
+  jeff_txt <- paste("Jefferson County, WA (pop=", pop_format(jeff_cases$pop[1]), ")", sep="")
+  sno_txt <- paste("Snohomish County, WA (pop=", pop_format(sno_cases$pop[1]), ")", sep="")
+  ska_txt <- paste("Skagit County, WA (pop=", pop_format(ska_cases$pop[1]), ")", sep="")
+  kit_txt <- paste("Kitsap County, WA (pop=", pop_format(kit_cases$pop[1]), ")", sep="")
+  if ( USA_ALL ) {
+    usa_txt <- paste("USA (pop=", pop_format(usa_cases$pop[1]), ")", sep="")
+  }
+  india_txt <- paste("India (pop=", pop_format(india$pop[1]), ")", sep="")
+
+  filename = "my_perhundy_select.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  if ( USE_GGPLOT ) {
+    linetypes <- c('wa' = 'solid',
+                  'mt' =  'solid',
+                  'ic' = 'solid',
+                  'kc' = 'solid',
+                  'yak' = 'solid',
+                  'all' = "solid",
+                  'mad' = 'solid',
+                  'sji' = "solid",
+                  'jeff' = "solid",
+                  'kit' = 'solid',
+                  'usa' = 'dashed',
+                  'b_co' = "solid",
+
+                'b_ci' = "solid")
+
+     #   linetypes <- c('solid', 'solid', 'solid', 'solid', 'solid', "solid", 'solid', "solid", "solid", 'solid', 'dashed', "solid", "solid")
+    temp_df <- data.frame(dates = wa_cases$dates,
+                          wa = wa_cases$cases_per_hundy,
+                          mt = mt_cases$cases_per_hundy,
+                          ic = ic_cases$cases_per_hundy,
+                          kc = kc_cases$cases_per_hundy,
+                          yak = yak_cases$cases_per_hundy,
+                          all = all_cases$cases_per_hundy,
+                          mad = mad_cases$cases_per_hundy,
+                          sji = sji_cases$cases_per_hundy,
+                          jeff = jeff_cases$cases_per_hundy,
+                          kit = kit_cases$cases_per_hundy,
+                          b_co = b_co_cases$cases_per_hundy,
+                          b_ci = b_ci_cases$cases_per_hundy,
+                          usa = usa_cases$cases_per_hundy)
+    p<- ggplot(data=temp_df, aes(dates, linetypes='linetypes')) +
+      geom_line(aes(y = ic, colour=ic_txt), linetype='solid') +
+      geom_line(aes(y = kc, colour=kc_txt), linetype='solid') +
+      geom_line(aes(y = wa, colour=wa_s_txt), linetype='solid') +
+      geom_line(aes(y = mt, colour=mt_s_txt), linetype='solid') +
+      geom_line(aes(y = b_co, colour=b_co_txt), linetype='solid') +
+      geom_line(aes(y = b_ci, colour=b_ci_txt), linetype='solid') +
+      geom_line(aes(y = kit, colour=kit_txt), linetype='solid') +
+      geom_line(aes(y = jeff, colour=jeff_txt), linetype='solid') +
+      geom_line(aes(y = sji, colour=sji_txt), linetype='solid') +
+      geom_line(aes(y = yak, colour=yak_txt), linetype='solid') +
+      geom_line(aes(y = all, colour=all_txt), linetype='solid') +
+      geom_line(aes(y = mad, colour=mad_txt), linetype='solid') +
+      geom_line(aes(y = usa, colour=usa_txt), linetype='dashed') +
+      scale_color_manual(values = c('black',
+                                    'darkred',
+                                    'red',
+                                    "blue",
+                                    "pink",
+                                    "green",
+                                    "grey",
+                                    "lightblue",
+                                    "orange",
+                                    "purple",
+                                    "red",
+                                    "darkgreen",
+                                    "yellow")) +
+ #    scale_linetype_manual( values = c('solid', 'solid', 'solid', 'solid', 'solid', "solid", 'solid', "solid", "solid", 'solid', 'dashed', "solid", "solid")) +
+#      scale_linetype_manual( values = linetypes ) +
+      ylim(0,max(b_ci_cases$cases_per_hundy, na.rm = TRUE)) +
+#      labs(title = main_cases_hundy_txt,
+#           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+#           x = "Dates",
+#           y = ylab_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            panel.border = element_blank(),
+            axis.line = element_line(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+    #        legend.title = element_blank(),
+            legend.position = c(0.35, 0.80),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  }
+  else {
+    plot(kc_cases$dates, kc_cases$cases_per_hundy,
+       main = paste(cumulative_c19_cases_txt, hundy_txt),
+       ylab = ylab_cases_hundy_txt,
+       xlab = "Dates",
+       type = 'l',
+       col = "green",
+       lwd = 2,
+       xlim = as.Date(c(plot_start_date, plot_end_date)),
+       ylim = c(0,max(b_ci_cases$cases_per_hundy, na.rm = TRUE)))
+    legend("topleft",
+         legend=c(kc_txt,
+                  yak_txt,
+                  ic_txt,
+                  kit_txt,
+                  b_co_txt,
+                  b_ci_txt,
+                  all_txt,
+                  mad_txt,
+                  mt_s_txt,
+                  sji_txt,
+                  jeff_txt),
+         col=c("green", "Grey","blue", "yellow",  "red", "red", "darkred", "lightblue", "orange", "purple", "black"),
+         lty=1:2,
+         cex=0.8)
+  legend("top", legend = "WA Combined", col = "darkgreen", lty=5, lwd = 2)
+  lines(wa_cases$dates, wa_cases$cases_per_hundy, col="darkgreen", lty=5, lwd=2)
+  mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+  lines(ic_cases$dates, ic_cases$cases_per_hundy, col="blue", lty=1, lwd = 2)
+  lines(kit_cases$dates, kit_cases$cases_per_hundy, col="yellow", lty=2)
+  lines(yak_cases$dates, yak_cases$cases_per_hundy, col="grey", lty=2)
+  lines(b_co_cases$dates, b_co_cases$cases_per_hundy, col="red", lty=1)
+  lines(b_ci_cases$dates, b_ci_cases$cases_per_hundy, col="red", lty=2)
+  lines(all_cases$dates, all_cases$cases_per_hundy, col="darkred", lty=1)
+  lines(mad_cases$dates, mad_cases$cases_per_hundy, col="lightblue", lty=2)
+  lines(mt_cases$dates, mt_cases$cases_per_hundy, col="orange", lty=1)
+  lines(sji_cases$dates, sji_cases$cases_per_hundy, col="purple", lty=2)
+  lines(jeff_cases$dates, jeff_cases$cases_per_hundy, col="black", lty=1)
+    # re-add king to make sure it's on 'top'
+    lines(kc_cases$dates, kc_cases$cases_per_hundy, col="green", lty=1, lwd=2)
+
+  } # USE_GGPLOT
+
+  dev.off()
+  file_to_bucket(filename)
+
+
+  # apple cup 
+  # daily rates
+  filename = "apple_cup_daily.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  maxy = max(wh_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+
+  apple_df <- data.frame(dates = kc_cases$dates,
+                          kc = kc_cases$daily_cases_per_hundy_avrg14d,
+                          wh = wh_cases$daily_cases_per_hundy_avrg14d,
+                          wa = wa_cases$daily_cases_per_hundy_avrg14d)
+  p<- ggplot(data=apple_df, aes(dates)) +
+      geom_line(aes(y = kc, colour=kc_txt)) +
+      geom_line(aes(y = wh, colour=wh_txt)) +
+      scale_color_manual(values = c('purple', 'darkred')) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid", size = 0.2, colour ="black"))
+
+  print(p)
+  dev.off()
+  file_to_bucket(filename)
+
+
+  filename = "uw_v_wsu.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  if ( USE_GGPLOT ) {
+    apple_cup <- data.frame(wh_cases$dates,
+                   wh_cases$cases_per_hundy,
+                   kc_cases$cases_per_hundy)
+    p<- ggplot(data=apple_cup, aes(wh_cases.dates)) +
+      geom_line(aes(y = wh_cases.cases_per_hundy,
+                    colour=wh_txt)) +
+      geom_line(aes(y = kc_cases.cases_per_hundy,
+                    colour=kc_txt)) +
+      scale_color_manual(values = c('purple', 'darkred')) +
+      ylim(0,max(apple_cup$wh_cases.cases_per_hundy)) +
+      labs(title = paste(cumulative_c19_cases_txt, hundy_txt),
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  }
+  else {
+    plot(wh_cases$dates, wh_cases$cases_per_hundy,
+       main = paste(cumulative_c19_cases_txt, hundy_txt),
+       ylab = ylab_cases_hundy_txt,
+       xlab = "Dates",
+       type = 'l',
+       col = "darkred",
+       xlim = as.Date(c(plot_start_date, plot_end_date)),
+       ylim = c(0,max(wh_cases$cases_per_hundy)))
+    legend("topleft",
+         legend=c(wh_txt, kc_txt),
+         col=c("darkred", "purple"),
+         lty=1,
+         cex=2)
+    lines(kc_cases$dates, kc_cases$cases_per_hundy, col="purple")
+    mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+  } # USE_GGPLOT
+
+  dev.off()
+  file_to_bucket(filename)
+
+
+  wa_east_west(plot_casesned = TRUE,
+               plot_casesned_cases = FALSE,
+               file_base = "wa_east_west",
+               version = version)
+  file_to_bucket(file = "wa_east_west_cases_per_hundy.jpg")
+
+  # 14 day moving plots
+  make_plot(loc_txt = ic_txt, df = ic_cases, daily_cases = TRUE, file_base = "island_wa")
+ # make_plot(loc_txt = ic_txt, df = ic_cases, daily_cases = TRUE)
+  # selby
+  file_to_bucket(file = "island_wa_daily_cases.jpg")
+  make_plot(loc_txt = kc_txt, df = kc_cases, daily_cases = TRUE, file_base = "king_wa")
+  file_to_bucket(file = "king_wa_daily_cases.jpg")
+  make_plot(loc_txt = b_co_txt, df = b_co_cases, daily_cases = TRUE, file_base = "balto_co_md")
+  file_to_bucket(file = "balto_co_md_daily_cases.jpg")
+
+
+  filename = "is_king_balto.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  maxy = max(b_co_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+
+  if ( USE_GGPLOT ) {
+    temp_df <- data.frame(dates = wh_cases$dates,
+                          kc = kc_cases$daily_cases_per_hundy_avrg14d,
+                          ic = ic_cases$daily_cases_per_hundy_avrg14d,
+                          wa = wa_cases$daily_cases_per_hundy_avrg14d,
+                          b_co = b_co_cases$daily_cases_per_hundy_avrg14d)
+    p<- ggplot(data=temp_df, aes(dates)) +
+      geom_line(aes(y = kc, colour=kc_txt)) +
+      geom_line(aes(y = ic, colour=ic_txt)) +
+      geom_line(aes(y = b_co, colour=b_co_txt)) +
+      scale_color_manual(values = c('red', 'blue', 'green')) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  }
+  else {
+
+    plot(kc_cases$dates, kc_cases$daily_cases_per_hundy_avrg14d,
+       main = "Daily Cases per 100,000, 14day Average",
+       ylab = ylab_daily_cases_hundy_txt,
+       ylim = c(0,maxy),
+       xlab = "Dates",
+       type = 'l',
+       col = "green",
+       xlim = as.Date(c(plot_start_date, plot_end_date)))
+    lines(ic_cases$dates, ic_cases$daily_cases_per_hundy_avrg14d, col="blue")
+    lines(b_co_cases$dates, b_co_cases$daily_cases_per_hundy_avrg14d, col="red")
+    legend("topleft",
+         legend=c(kc_txt, ic_txt, b_co_txt),
+         col=c("green", "blue", "red"),
+         lty=1)
+      mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+  } # USE_GGPLOT
+
+  dev.off()
+  file_to_bucket(filename)
+
+
+  filename = "is_king_wa.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  maxy = max(wa_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+
+  if ( USE_GGPLOT ) {
+    p<- ggplot(data=temp_df, aes(dates)) +
+      geom_line(aes(y = wa, colour=wa_s_txt)) +
+      geom_line(aes(y = ic, colour=ic_txt)) +
+      geom_line(aes(y = kc, colour=kc_txt)) +
+      scale_color_manual(values = c('blue', 'green', 'darkgreen')) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  }
+  else {
+    plot(kc_cases$dates, kc_cases$daily_cases_per_hundy_avrg14d,
+       main = "Daily Cases per 100,000, 14day Average",
+       ylab = ylab_daily_cases_hundy_txt,
+       ylim = c(0,maxy),
+       xlab = "Dates",
+       type = 'l',
+       col = "green",
+       xlim = as.Date(c(plot_start_date, plot_end_date)))
+  lines(ic_cases$dates, ic_cases$daily_cases_per_hundy_avrg14d, col="blue")
+  lines(wa_cases$dates, wa_cases$daily_cases_per_hundy_avrg14d, col="darkgreen")
+  legend("topleft",
+         legend=c(ic_txt, kc_txt, wa_s_txt),
+         col=c("green", "blue", "darkgreen"),
+         lty=1)
+    mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+  } # USE_GGPLOT
+
+  dev.off()
+  file_to_bucket(filename)
+
+
+  filename = "is_king_wa_sum.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  temp_df_sum <- data.frame(dates = wh_cases$dates,
+                        kc = kc_cases$daily_cases_per_hundy_sum14d,
+                        ic = ic_cases$daily_cases_per_hundy_sum14d,
+                        wa = wa_cases$daily_cases_per_hundy_sum14d,
+                        ska = ska_cases$daily_cases_per_hundy_sum14d,
+                        kit = kit_cases$daily_cases_per_hundy_sum14d,
+                        sno = sno_cases$daily_cases_per_hundy_sum14d,
+                        b_co = b_co_cases$daily_cases_per_hundy_sum14d)
+  maxy = max(wa_cases$daily_cases_per_hundy_sum14d, na.rm = TRUE)
+  today <- Sys.Date()
+  start_graph <- today - months(2)
+
+  p<- ggplot(data=temp_df_sum, aes(dates)) +
+      geom_line(aes(y = sno, colour=sno_txt)) +
+      geom_line(aes(y = ic, colour=ic_txt)) +
+      geom_line(aes(y = ska, colour=ska_txt)) +
+      geom_line(aes(y = kc, colour=kc_txt)) +
+      geom_line(aes(y = kit, colour=kit_txt)) +
+    geom_vline(xintercept=as.Date(c("2021/04/24", "2021/04/09")), linetype="dashed") +
+    geom_hline(yintercept = 200, linetype="dashed") +
+  # geom_hline(yintercept = c(200, 150)) +
+      scale_color_manual(values = c('blue', 'green', 'yellow', 'purple', 'pink')) +
+      ylim(0,maxy) +
+      scale_x_date(date_breaks = "3 week",
+                 labels=date_format("%b-%d-%Y"),
+                 limits = c(start_graph, today),
+                 ) +
+      labs(title = main_daily_cases_hundy_14d_sum_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+
+  print(p)
+
+  dev.off()
+  file_to_bucket(filename)
+
+
+  # MISC graphs
+  # multiple counties 14 day
+  filename = "misc.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  maxy = max(mt_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+
+  if ( USE_GGPLOT ) {
+    temp_df <- data.frame(dates = wa_cases$dates,
+                          or = or_cases$daily_cases_per_hundy_avrg14d,
+                          mi = mi_cases$daily_cases_per_hundy_avrg14d,
+                          wa = wa_cases$daily_cases_per_hundy_avrg14d,
+                          ca = ca_cases$daily_cases_per_hundy_avrg14d,
+                          md = md_cases$daily_cases_per_hundy_avrg14d,
+                          id = id_cases$daily_cases_per_hundy_avrg14d,
+                          mt = mt_cases$daily_cases_per_hundy_avrg14d,
+                          ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
+                          india = india$daily_cases_per_hundy_avrg14d,
+                          usa = usa_cases$daily_cases_per_hundy_avrg14d)
+    p<- ggplot(data=temp_df, aes(dates)) +
+      geom_line(aes(y = or, colour=or_s_txt)) +
+      geom_line(aes(y = wa, colour=wa_s_txt)) +
+      geom_line(aes(y = mt, colour=mt_s_txt)) +
+      geom_line(aes(y = mi, colour=mi_s_txt)) +
+#      geom_line(aes(y = india, colour=india_txt)) +
+      geom_line(aes(y = usa, colour=usa_txt), linetype="dashed") +
+      scale_color_manual(values = c('black', 'orange', 'lightgreen', "red", "darkgreen")) +
+      scale_linetype_manual(values = c('solid', 'solid', 'solid', 'dashed', 'solid')) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  }
+  else {
+  plot(wa_cases$dates, wa_cases$daily_cases_per_hundy_avrg14d,
+       # plot(kc_cases$dates, wa_cases$daily_cases_per_hundy_avrg14d,
+       main = "Daily Cases per 100,000, 14day Average",
+       ylab = ylab_daily_cases_hundy_txt,
+       ylim = c(0,maxy),
+       xlab = "Dates",
+       type = 'l',
+       col = "darkgreen",
+       xlim = as.Date(c(plot_start_date, plot_end_date)))
+#  lines(md_cases$dates, md_cases$daily_cases_per_hundy_avrg14d, col="red")
+#  lines(va_cases$dates, va_cases$daily_cases_per_hundy_avrg14d, col="gold")
+  lines(or_cases$dates, or_cases$daily_cases_per_hundy_avrg14d, col="lightgreen")
+#  lines(pa_cases$dates, pa_cases$daily_cases_per_hundy_avrg14d, col="darkblue")
+  lines(mt_cases$dates, mt_cases$daily_cases_per_hundy_avrg14d, col="orange")
+  lines(ca_cases$dates, ca_cases$daily_cases_per_hundy_avrg14d, col="brown")
+  legend("topleft",
+         legend=c("Pennsylvania", "Maryland", "Virginia", wa_s_txt, or_s_txt, mt_s_txt, ca_s_txt),
+         col=c("darkblue", "red", "gold", "darkgreen", "lightgreen", "orange", "brown"),
+         lty=1)
+  mtext(paste("created",format(Sys.Date(), "%m/%d/%Y")), side=3)
+
+  }
+  dev.off()
+  file_to_bucket(filename)
+
+  # MISC2222222222222222222222
+  # multiple counties 14 day
+  filename = "misc2.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+
+  maxy = max(ca_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+
+  if ( USE_GGPLOT ) {
+    p<- ggplot(data=temp_df, aes(dates)) +
+      geom_line(aes(y = or, colour=or_s_txt)) +
+      geom_line(aes(y = wa, colour=wa_s_txt)) +
+      geom_line(aes(y = ca_bc, colour=ca_bc_txt)) +
+      geom_line(aes(y = id, colour=id_s_txt)) +
+      geom_line(aes(y = ca, colour=ca_s_txt)) +
+      scale_color_manual(values = c('lightblue', 'pink', 'brown', 'lightgreen', "darkgreen")) +
+      ylim(0,maxy) +
+      labs(title = main_daily_cases_hundy_14d_avrg_txt,
+           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+           x = "Dates",
+           y = ylab_daily_cases_hundy_txt) +
+      theme_bw() +
+      theme(panel.grid.minor = element_blank(),
+            #            panel.grid.major = element_blank(),
+            panel.background = element_blank(),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5),
+            plot.caption = element_text(hjust = 0.5),
+            legend.title = element_blank(),
+            legend.position = c(0.35, 0.87),
+            legend.background = element_rect(linetype="solid",
+                                             size = 0.2,
+                                             colour ="black"))
+    print(p)
+
+  } # if use ggplot
+
+  dev.off()
+  file_to_bucket(filename)
+
+}  #prod
+
+if(live_mode) {
+  dev.off()
+}
+
+print("Code loaded")
+
+onetime(version=version)
+print("OneTime loaded")
+
+newday(version=version)
+print("Newday loaded")
+
+population <- get_population()
+print("Population loaded")
+
+
+#pusa_df <- build_all_states()
+prod(version=version)
+warnings()
+#get_bucket(bucket)
+
+india <- get_admin0(country = "india")
+make_plot(india, "India", daily_cases = TRUE)
+india <- get_admin0(country = "US")
+make_plot(india, "US", daily_cases = TRUE)
+
+#jpeg(filename = "rplot.jpg", width = 350, height = 350)
+#plot
+#dev.off()
+#result <- rpubsUpload("My document title", "Document.html")
+#if (!is.null(result$continueUrl)) {
+#  browseURL(result$continueUrl)
+#} else {
+#  stop(result$error)
+#}
+
+
+
+# definition of S4 class
+#Area <- setClass("Area", slots=list(type = "county",
+#                            pop = 0,
+#                            name = "fake county",
+#                            admin2 = "county name",
+#                            admin1 = "state name",
+ #                           displayname = "County, State"))
+#wa_ic <- new("Area", type = "county",
+#             admin1 = "Washington",
+#             admin2 = "Island")
