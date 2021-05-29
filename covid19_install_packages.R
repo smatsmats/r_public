@@ -1,0 +1,11 @@
+r = getOption("repos")
+r["CRAN"] = "http://cran.us.r-project.org"
+options(repos = r)
+install.packages("stringr")
+install.packages("rsconnect")
+install.packages("aws.s3")
+install.packages("zoo")
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("methods")
+install.packages("scales")
