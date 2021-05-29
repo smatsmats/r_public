@@ -3,14 +3,14 @@ r["CRAN"] = "http://cran.us.r-project.org"
 options(repos = r)
 
 # for sure these
-library("aws.s3")
-library("zoo")
-library("scales")
+install.packages("aws.s3")
+install.packages("zoo")
+install.packages("scales")
 
-#library("tidyverse")   # maybe we don't need the whole -verse
+#install.packages("tidyverse")   # maybe we don't need the whole -verse
 # todyverse things
-library("dplyr")
-library("lubridate")
-library("tidyr")
-library("ggplot2")
-library("stringr")
+install.packages("dplyr")
+install.packages("lubridate")
+install.packages("tidyr")
+install.packages("ggplot2")
+install.packages("stringr")
