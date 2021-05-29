@@ -2,14 +2,23 @@
 #library("tm")
 #library("plotly")
 #library("tictoc")
-library("stringr")
-library("rsconnect")
+
+# don't know about these
+#library("rsconnect")
+#library("methods")
+
+# for sure these
 library("aws.s3")
 library("zoo")
-library("tidyverse")
-library("ggplot2")
-library("methods")
 library("scales")
+
+#library("tidyverse")   # maybe we don't need the whole -verse
+# todyverse things
+library("dplyr")
+library("lubridate")
+library("tidyr")
+library("ggplot2")
+library("stringr")
 
 # design decisions
 # - don't combine plotting and making df's

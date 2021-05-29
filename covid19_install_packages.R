@@ -1,11 +1,16 @@
 r = getOption("repos")
 r["CRAN"] = "http://cran.us.r-project.org"
 options(repos = r)
-install.packages("stringr")
-#install.packages("rsconnect")
-install.packages("aws.s3")
-install.packages("zoo")
-#install.packages("tidyverse")
-install.packages("ggplot2")
-#install.packages("methods")
-#install.packages("scales")
+
+# for sure these
+library("aws.s3")
+library("zoo")
+library("scales")
+
+#library("tidyverse")   # maybe we don't need the whole -verse
+# todyverse things
+library("dplyr")
+library("lubridate")
+library("tidyr")
+library("ggplot2")
+library("stringr")
