@@ -38,6 +38,7 @@ ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
 USE_GGPLOT <- TRUE
 PUSH_TO_AMAZON <- TRUE
+VERBOSE <- FALSE
 
 if ( Sys.getenv("AWS_DEFAULT_REGION") == "" ) {
   cat("No AWS creds in environment\n")
@@ -316,9 +317,11 @@ get_pop_jhu <- function(province_state = "",
     province_state <- ""
   }
 
-  cat("get_pop_jhu: going to get pop for: country:", country,
-      "state:", province_state,
-      "admin2:", admin2, "\n")
+  if ( VERBOSE ) {
+    cat("get_pop_jhu: going to get pop for: country:", country,
+        "state:", province_state,
+        "admin2:", admin2, "\n")
+  }
 
   row <- subset(uid_iso_fips_lookup,
                   grepl(country, Country_Region, ignore.case=TRUE) &
@@ -1123,11 +1126,7 @@ mk_state_string <- function(state) {
 #                 version = version)
 build_all_states <- function(combined = TRUE,
                              keep_dfs = FALSE,
-#                             plot_redblue = FALSE,
-#                             plot_redblue_cases = FALSE,
                              plot_wa_and = FALSE,
-#                             plot_daily_cases = FALSE,
-#                             plot_cases_per_hundy = FALSE,
                              plot_state_cases_per_hundy = FALSE,
                              file_base = NULL,
                              version = 3.0,
@@ -1144,7 +1143,9 @@ build_all_states <- function(combined = TRUE,
   states <- unique(sort(usa_confirmed$Province_State))
 
   for ( state in states ) {
-    print(paste("state is", state))
+    if ( VERBOSE ) {
+      print(paste("state is", state))
+    }
     new_df <- get_admin1(state, version = version)
 
     if( is.null(new_df) ) {
@@ -1247,26 +1248,6 @@ build_all_states <- function(combined = TRUE,
 
   } # for all states
 
-# move this out
-#  if ( plot_casesned_daily_cases_per_hundy ) {
-#    file_base <- "USA"
-#    if ( ENABLE_RED_BLUE ) {
-#      make_redblue_plot(usa_df, paste(cumulative_c19_cases_txt), "USA",
-#                    cases_per_hundy = plot_redblue, cases = plot_redblue_cases,
-#                    file_base = file_base)
-#    }
-#
-#    make_plot(usa_df,
-#              paste(cumulative_c19_cases_txt), "USA",
-#              cases_per_hundy = plot_cases_per_hundy,
-#              cases = plot_casesned_cases,
-#              daily_cases = plot_casesned_daily_cases_per_hundy,
-#              file_base = file_base)
-#    if ( push2amazon ) {
-#      file_to_bucket(paste(file_base, "_daily_cases.jpg", sep=""))
-#    }
-#  }
-
   return(usa_df)
 
 }
@@ -1354,12 +1335,12 @@ wa_east_west <- function(plot_casesned = FALSE,
       geom_line(aes(y = west, colour=west_txt)) +
       geom_line(aes(y = east, colour=east_txt)) +
       scale_color_manual(values = c('gold', 'green')) +
-      ylim(0,maxy) +
       labs(title = main_daily_cases_hundy_14d_avrg_txt,
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
            x = "Dates",
            y = ylab_daily_cases_hundy_txt) +
-      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      scale_y_continuous( limits = c(0,maxy),
+                          sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
       theme_bw() +
       theme(panel.grid.minor = element_blank(),
             panel.background = element_blank(),
@@ -1383,8 +1364,6 @@ if(live_mode) {
 
 
 prod <- function(version = 1.0) {
-
-  print(paste("in prod, version is", version))
 
   if ( USA_ALL ) {
     usa_cases <- build_all_states(combined = TRUE,
@@ -1466,6 +1445,7 @@ prod <- function(version = 1.0) {
   }
   india_txt <- paste("India (pop=", pop_format(india$pop[1]), ")", sep="")
 
+  ##############################################################################
   filename = "my_perhundy_select.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
@@ -1599,7 +1579,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   # apple cup 
   # daily rates
   filename = "apple_cup_daily.jpg"
@@ -1617,12 +1597,12 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = kc, colour=kc_txt)) +
       geom_line(aes(y = wh, colour=wh_txt)) +
       scale_color_manual(values = c('purple', 'darkred')) +
-      ylim(0,maxy) +
       labs(title = main_daily_cases_hundy_14d_avrg_txt,
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
            x = "Dates",
            y = ylab_daily_cases_hundy_txt) +
-      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      scale_y_continuous( limits = c(0,maxy),
+                          sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
       theme_bw() +
       theme(panel.grid.minor = element_blank(),
             panel.background = element_blank(),
@@ -1637,7 +1617,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   filename = "uw_v_wsu.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
@@ -1694,12 +1674,14 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   wa_east_west(plot_casesned = TRUE,
                plot_casesned_cases = FALSE,
                file_base = "wa_east_west",
                version = version)
   file_to_bucket(file = "wa_east_west_cases_per_hundy.jpg")
+
+  ##############################################################################
 
   # 14 day moving plots
   make_plot(loc_txt = ic_txt, df = ic_cases, daily_cases = TRUE, file_base = "island_wa")
@@ -1711,7 +1693,7 @@ prod <- function(version = 1.0) {
   make_plot(loc_txt = b_co_txt, df = b_co_cases, daily_cases = TRUE, file_base = "balto_co_md")
   file_to_bucket(file = "balto_co_md_daily_cases.jpg")
 
-
+  ##############################################################################
   filename = "is_king_balto.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
@@ -1771,7 +1753,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   filename = "is_king_wa.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
@@ -1825,7 +1807,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   filename = "is_king_wa_sum.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
@@ -1880,7 +1862,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
-
+  ##############################################################################
   # MISC graphs
   # multiple counties 14 day
   filename = "misc.jpg"
@@ -1911,12 +1893,12 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = usa, colour=usa_txt), linetype="dashed") +
       scale_color_manual(values = c('black', 'orange', 'lightgreen', "red", "darkgreen")) +
       scale_linetype_manual(values = c('solid', 'solid', 'solid', 'dashed', 'solid')) +
-      ylim(0,maxy) +
       labs(title = main_daily_cases_hundy_14d_avrg_txt,
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
            x = "Dates",
            y = ylab_daily_cases_hundy_txt) +
-      scale_y_continuous( sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
+      scale_y_continuous( limits = c(0, maxy),
+                          sec.axis = sec_axis( trans=~.*14, name="14 Day Sum / 100,000 Population")) +
       theme_bw() +
       theme(panel.grid.minor = element_blank(),
             #            panel.grid.major = element_blank(),
@@ -1958,6 +1940,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
+  ##############################################################################
   # MISC2222222222222222222222
   # multiple counties 14 day
   filename = "misc2.jpg"
@@ -2005,16 +1988,16 @@ if(live_mode) {
   dev.off()
 }
 
-print("Code loaded")
+cat("Code loaded\n")
 
 onetime(version=version)
-print("OneTime loaded")
+cat("OneTime loaded\n")
 
 newday(version=version)
-print("Newday loaded")
+cat("Newday loaded\n")
 
 population <- get_population()
-print("Population loaded")
+cat("Population loaded\n")
 
 
 #pusa_df <- build_all_states()
