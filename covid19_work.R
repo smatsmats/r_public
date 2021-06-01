@@ -557,6 +557,11 @@ make_plot_gg <- function(df,
     return(NULL)
   }
 
+  # bail if we have no population
+  if ( df[1,]$pop == 0 ) {
+    return(NULL)
+  }
+
   # maybe override the global cumulative_c19_cases_txt
   if ( !is.null(main_txt) ) {
     cumulative_c19_cases_txt = main_txt
@@ -570,7 +575,7 @@ make_plot_gg <- function(df,
     }
 
     p <- ggplot(data=df, aes(x=dates, y=cases_per_hundy)) +
-      geom_line(colour="purple") +
+      geom_line(colour="purple", na.rm = FALSE) +
       labs(title = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
            x = "Dates",
@@ -597,7 +602,7 @@ make_plot_gg <- function(df,
     }
 
     p<- ggplot(data=df, aes(x=dates, y=cases)) +
-        geom_line(colour="purple") +
+        geom_line(colour="purple", na.rm = FALSE) +
         labs(title = paste(loc_txt, cumulative_c19_cases_txt),
            subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
            x = "Dates",
@@ -624,7 +629,9 @@ make_plot_gg <- function(df,
     }
 
     p<- ggplot(data=df, aes(dates)) +
-      geom_line(aes(y = daily_cases_per_hundy, colour="Daily"), size=0.3) +
+      geom_line(aes(y = daily_cases_per_hundy, colour="Daily"), 
+                size=0.3,
+                na.rm = FALSE) +
       scale_color_manual(values = c(
         '14 Day Average / Sum' = 'red',
         'Daily' = 'mediumpurple1')) +
@@ -650,7 +657,9 @@ make_plot_gg <- function(df,
             legend.background = element_rect(linetype="solid",
                                              size = 0.2,
                                              colour ="black")) +
-      geom_line(aes(y = daily_cases_per_hundy_avrg14d, colour="14 Day Average / Sum"))
+      geom_line(aes(y = daily_cases_per_hundy_avrg14d, 
+                    colour="14 Day Average / Sum"),
+                na.rm = FALSE)
 
     print(p)
 
@@ -1167,13 +1176,18 @@ build_all_states <- function(combined = TRUE,
         }
     }
 
+    # really no point if there isn't anyone there
+    if ( new_df[1,]$pop == 0 ) {
+      next
+    }
+    
     if ( plot_state_cases_per_hundy ) {
       file_base <- str_replace_all(tolower(state), " ", "_")
-      make_plot(new_df,
-                loc_txt = state,
-                cases_per_hundy = TRUE,
-                file_base = file_base)
-      if ( push2amazon ) {
+      ret <- make_plot(new_df,
+                       loc_txt = state,
+                       cases_per_hundy = TRUE,
+                       file_base = file_base)
+      if ( push2amazon && ! is.null(ret) ) {
         filename <- paste(file_base, "cases_per_hundy.jpg", sep="_")
         file_to_bucket(filename)
       }
@@ -1999,8 +2013,6 @@ cat("Newday loaded\n")
 population <- get_population()
 cat("Population loaded\n")
 
-
-#pusa_df <- build_all_states()
 prod(version=version)
 warnings()
 #get_bucket(bucket)
