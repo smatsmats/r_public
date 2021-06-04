@@ -629,7 +629,7 @@ make_plot_gg <- function(df,
     }
 
     p<- ggplot(data=df, aes(dates)) +
-      geom_line(aes(y = daily_cases_per_hundy, colour="Daily"), 
+      geom_line(aes(y = daily_cases_per_hundy, colour="Daily"),
                 size=0.3,
                 na.rm = FALSE) +
       scale_color_manual(values = c(
@@ -657,7 +657,7 @@ make_plot_gg <- function(df,
             legend.background = element_rect(linetype="solid",
                                              size = 0.2,
                                              colour ="black")) +
-      geom_line(aes(y = daily_cases_per_hundy_avrg14d, 
+      geom_line(aes(y = daily_cases_per_hundy_avrg14d,
                     colour="14 Day Average / Sum"),
                 na.rm = FALSE)
 
@@ -1180,7 +1180,7 @@ build_all_states <- function(combined = TRUE,
     if ( new_df[1,]$pop == 0 ) {
       next
     }
-    
+
     if ( plot_state_cases_per_hundy ) {
       file_base <- str_replace_all(tolower(state), " ", "_")
       ret <- make_plot(new_df,
@@ -1376,6 +1376,10 @@ if(live_mode) {
   wa_east_west(file_base = "waeastwest")
 }
 
+save_wa_data <- function() {
+  washington <- filter(usa_confirmed, Province_State == "Washington")
+  write.csv(washington, file = "washington_covid19_cases.csv")
+}
 
 prod <- function(version = 1.0) {
 
@@ -1594,7 +1598,7 @@ prod <- function(version = 1.0) {
   file_to_bucket(filename)
 
   ##############################################################################
-  # apple cup 
+  # apple cup
   # daily rates
   filename = "apple_cup_daily.jpg"
   jpeg(filename = filename,
@@ -2002,6 +2006,9 @@ if(live_mode) {
   dev.off()
 }
 
+###################################################
+###### main
+
 cat("Code loaded\n")
 
 onetime(version=version)
@@ -2012,6 +2019,8 @@ cat("Newday loaded\n")
 
 population <- get_population()
 cat("Population loaded\n")
+
+save_wa_data()
 
 prod(version=version)
 warnings()
