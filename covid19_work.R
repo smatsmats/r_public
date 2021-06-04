@@ -667,6 +667,9 @@ make_plot_gg <- function(df,
       dev.off()
     }
   } # if daily cases
+
+  # just return something not NULL
+  return(p)
 }
 
 multi_make_plot <- function(df,
