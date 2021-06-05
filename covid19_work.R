@@ -175,11 +175,13 @@ newday <- function(version = 3.0) {
   # reset end date
   plot_end_date <<- format(Sys.Date(), "%Y/%m/%d")
 
+  # comes in wide
   usa_confirmed <<- read.csv("https://github.com/CSSEGISandData//COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv?raw=true")
   global_confirmed <<- read.csv("https://github.com/CSSEGISandData//COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv?raw=true")
 
   # clean-up global-confirmed
   global_confirmed[c("Lat", "Long")] <- NULL
+  # make long
   global_confirmed_t <<- pivot_longer(global_confirmed,
                                       cols = starts_with('X'),
                                       names_to = "dates",
@@ -198,12 +200,13 @@ newday <- function(version = 3.0) {
                                       format="%m.%d.%y")
   usa_confirmed_t$state_ <<- tolower(usa_confirmed_t$Province_State)
   usa_states <<- usa_confirmed_t %>% group_by(Province_State, dates) %>% summarise(cases=sum(cases))
-  #usa_admin1 <- usa_states
 
-  # trying this out
-  #states_wide <- pivot_wider(usa_states, id_cols=dates,
-  #                             names_from = Province_State,
-  #                             values_from = cases)
+  # pivot back wide to get the nice wide version
+  states_wide <- pivot_wider(usa_states,
+                             id_cols=Province_State,
+                             #                             id_cols = Province_State,
+                             names_from = dates,
+                             values_from = cases)
 
 }
 
@@ -1380,8 +1383,26 @@ if(live_mode) {
 }
 
 save_wa_data <- function() {
-  washington <- filter(usa_confirmed, Province_State == "Washington")
-  write.csv(washington, file = "washington_covid19_cases.csv")
+  us_counties <- filter(usa_confirmed, Province_State == "Washington")
+  # before we add any columns get the last date column
+  cols <- dim(us_counties)[2]
+  us_counties <- merge(us_counties, uid_iso_fips_lookup[ , c("Population", "Combined_Key")], by='Combined_Key')
+  us_counties$latest <- us_counties[,cols]
+  us_counties$avrg14 <- (us_counties[,cols] - us_counties[,(cols-14)]) / 14
+  us_counties$latest_per_hundy <- us_counties$latest / us_counties$Population * 100000
+  us_counties$avrg14_per_hundy <- us_counties$avrg14 / us_counties$Population * 100000
+
+  us_counties$weekago <- us_counties[,(cols - 7)]
+  us_counties$weekago_avrg14 <- (us_counties[,(cols-7)] - us_counties[,(cols-14-7)]) / 14
+  us_counties$weekago_per_hundy <- us_counties$weekago / us_counties$Population * 100000
+  us_counties$weekago_avrg14_per_hundy <- us_counties$weekago_avrg14 / us_counties$Population * 100000
+  us_counties$trend <-  us_counties$avrg14_per_hundy - us_counties$weekago_avrg14_per_hundy
+#  us_counties$FIPS_str <- paste("'", us_counties$FIPS, "'", sep="")
+#  us_counties$FIPS_str <- paste(us_counties$FIPS)
+
+    write.csv(us_counties, file = "us_counties_covid19_cases.csv")
+
+
 }
 
 prod <- function(version = 1.0) {
