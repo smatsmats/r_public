@@ -20,6 +20,10 @@ library("tidyr")
 library("ggplot2")
 library("stringr")
 
+library("ggmap")
+library("maps")
+library("mapdata")
+
 # design decisions
 # - don't combine plotting and making df's
 # - except where it makes sense, i.e. build all states
@@ -59,6 +63,7 @@ hundy_txt <- "per 100,000"
 main_daily_cases_hundy_txt <- paste(daily_c19_cases_txt, hundy_txt)
 main_daily_cases_hundy_14d_avrg_txt <- paste(daily_c19_cases_txt, hundy_txt, fourteen_day_avrg_txt)
 main_daily_cases_hundy_14d_sum_txt <- paste(daily_c19_cases_txt, hundy_txt, fourteen_day_sum_txt)
+main_14day_trend_txt <- "14day Trend (of cases per 100,000, 14day average)"
 main_cases_hundy_txt <- paste(cumulative_c19_cases_txt, hundy_txt)
 ylab_cases_txt <- "Cases"
 ylab_daily_cases_txt <- "Daily Cases"
@@ -129,7 +134,8 @@ get_population <- function() {
     population$ctyname_ <- tolower(population$CTYNAME)
   }
   else {
-    uid_iso_fips_lookup <<- read.csv("https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true")
+    uid_iso_fips_lookup <- read.csv("https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true")
+    uid_iso_fips_lookup <<- mash_combined_key(uid_iso_fips_lookup)
   }
   return(population)
 }
@@ -202,11 +208,10 @@ newday <- function(version = 3.0) {
   usa_states <<- usa_confirmed_t %>% group_by(Province_State, dates) %>% summarise(cases=sum(cases))
 
   # pivot back wide to get the nice wide version
-  states_wide <- pivot_wider(usa_states,
-                             id_cols=Province_State,
-                             #                             id_cols = Province_State,
-                             names_from = dates,
-                             values_from = cases)
+  us_states_wide_raw <<- pivot_wider(usa_states,
+                               id_cols=Province_State,
+                               names_from = dates,
+                               values_from = cases)
 
 }
 
@@ -1382,27 +1387,353 @@ if(live_mode) {
   wa_east_west(file_base = "waeastwest")
 }
 
-save_wa_data <- function() {
-  us_counties <- filter(usa_confirmed, Province_State == "Washington")
+#this is really dumb, really not different than today - 14 days ago.
+make_14_sum <- function(df, coln) {
+  df$make_14_sum <- (df[,coln] - df[,(coln-1)]) +
+    (df[,(coln - 1)] - df[,(coln-2)]) +
+    (df[,(coln - 2)] - df[,(coln-3)]) +
+    (df[,(coln - 3)] - df[,(coln-4)]) +
+    (df[,(coln - 4)] - df[,(coln-5)]) +
+    (df[,(coln - 5)] - df[,(coln-6)]) +
+    (df[,(coln - 6)] - df[,(coln-7)]) +
+    (df[,(coln - 7)] - df[,(coln-8)]) +
+    (df[,(coln - 8)] - df[,(coln-9)]) +
+    (df[,(coln - 9)] - df[,(coln-10)]) +
+    (df[,(coln - 10)] - df[,(coln-11)]) +
+    (df[,(coln - 11)] - df[,(coln-12)]) +
+    (df[,(coln - 12)] - df[,(coln-13)]) +
+    (df[,(coln - 13)] - df[,(coln-14)])
+  return(df)
+}
+
+summarize_wide_data <- function(df, latest_col) {
+  df$latest <- df[,latest_col]
+  df <- make_14_sum(df, latest_col)
+  df$sum14 <- df$make_14_sum
+
+  df$avrg14 <- df$sum14 / 14
+  df$latest_per_hundy <- df$latest / df$Population * 100000
+  df$avrg14_per_hundy <- df$avrg14 / df$Population * 100000
+
+  df$week2ago <- df[,(latest_col - 14)]
+  df <- make_14_sum(df, (latest_col-14))
+  df$week2ago_sum14 <- df$make_14_sum
+  df$week2ago_avrg14 <- df$week2ago_sum14 / 14
+  df$week2ago_per_hundy <- df$week2ago / df$Population * 100000
+  df$week2ago_avrg14_per_hundy <- df$week2ago_avrg14 / df$Population * 100000
+  df$trend <-  df$avrg14_per_hundy - df$week2ago_avrg14_per_hundy
+#  df$FIPS_str <- paste("'", df$FIPS, "'", sep="")
+#  df$FIPS_str <- paste(df$FIPS)
+  return(df)
+}
+
+# makes a consistent clean key for matching
+mash_combined_key <- function(df) {
+  df$combinedkeylc <- str_to_lower(df$Combined_Key)
+  df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[.]", "")
+  df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[ ]", "")
+  return(df)
+}
+
+prep_wide_data <- function() {
+
+  # if we only wonted WA
+  #  us_counties_wide <- filter(usa_confirmed, Province_State == "Washington")
+  us_counties_wide <- usa_confirmed
+
+  # county data
   # before we add any columns get the last date column
-  cols <- dim(us_counties)[2]
-  us_counties <- merge(us_counties, uid_iso_fips_lookup[ , c("Population", "Combined_Key")], by='Combined_Key')
-  us_counties$latest <- us_counties[,cols]
-  us_counties$avrg14 <- (us_counties[,cols] - us_counties[,(cols-14)]) / 14
-  us_counties$latest_per_hundy <- us_counties$latest / us_counties$Population * 100000
-  us_counties$avrg14_per_hundy <- us_counties$avrg14 / us_counties$Population * 100000
+  # then subtract one for the prior day since 'today' might not be fully reported.
+  latest <- dim(us_counties_wide)[2] - 1
+  us_counties_wide <- merge(us_counties_wide,
+                            uid_iso_fips_lookup[ , c("Population", "Combined_Key")],
+                            by='Combined_Key',
+                            all.x = TRUE)
 
-  us_counties$weekago <- us_counties[,(cols - 7)]
-  us_counties$weekago_avrg14 <- (us_counties[,(cols-7)] - us_counties[,(cols-14-7)]) / 14
-  us_counties$weekago_per_hundy <- us_counties$weekago / us_counties$Population * 100000
-  us_counties$weekago_avrg14_per_hundy <- us_counties$weekago_avrg14 / us_counties$Population * 100000
-  us_counties$trend <-  us_counties$avrg14_per_hundy - us_counties$weekago_avrg14_per_hundy
-#  us_counties$FIPS_str <- paste("'", us_counties$FIPS, "'", sep="")
-#  us_counties$FIPS_str <- paste(us_counties$FIPS)
+  us_counties_wide <- summarize_wide_data(us_counties_wide, latest)
 
-    write.csv(us_counties, file = "us_counties_covid19_cases.csv")
+  us_counties_wide <- mash_combined_key(us_counties_wide)
+
+  # put in global environment
+  us_counties_wide <<- us_counties_wide
+
+  write.csv(us_counties_wide, file = "us_counties_covid19_cases.csv")
+
+  # states
+  us_states_wide <- us_states_wide_raw
+  latest <- dim(us_states_wide)[2] - 1
+  # get the pops for just us states
+  uid_iso_fips_lookup_states <- filter(uid_iso_fips_lookup, Admin2 == "" & Country_Region == "US")
+  us_states_wide <- merge(us_states_wide,
+                          uid_iso_fips_lookup_states[ , c("Population", "Province_State")],
+                          by='Province_State')
+
+  us_states_wide <<- summarize_wide_data(us_states_wide, latest)
+}
+
+if ( live_mode ) {
+  prep_wide_data()
+}
+
+# to do
+# cleanup
+# do something about limits and outliers
+# borders for counties in WA
+make_a_map_from_base <- function(df, var, base,
+                                 title,
+                                 midpoint = "mean",
+                                 trans = NULL,
+                                 black_border = TRUE,
+                                 outer_border_df = NULL,
+                                 caption = NULL,
+                                 filename = NULL) {
+
+  # prepare to drop the axes and ticks but leave the guides and legends
+  # We can't just throw down a theme_nothing()!
+  ditch_the_axes <- theme(
+    axis.text = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank(),
+    axis.title = element_blank()
+  )
+
+  if ( ! is.null(filename) ) {
+    jpeg(filename = filename, width = plot_file_width, height = plot_file_height)
+  }
+  meanv <- mean(df[,var], na.rm = TRUE)
+  med <- median(meanv <- mean(df[,var], na.rm = TRUE))
+  mean_txt <- paste("Mean =", round(meanv, digits = 1))
+  iqr <- IQR(df[,var], na.rm = TRUE)
+  data_range <- c(med-iqr*1.5, iqr*1.5+med)
+  print(paste("iqr", iqr, "med", med, "range", data_range))
+  mymap <- base +
+    geom_polygon(data = df, aes(fill = get(var))) +
+  #  geom_polygon(data = df, aes(fill = get(var)), color = "white") +
+    theme_bw() +
+    ditch_the_axes +
+    labs(title = title,
+       subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
+    theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        plot.caption = element_text(hjust = 0.5))
+  if ( is.null(trans) ) {
+    if ( midpoint == "mean" ) {
+      mymap <- mymap +
+        scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
+                             name = mean_txt)
+#      scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
+#                           name = mean_txt, limits = data_range)
+    }
+    else {
+      mymap <- mymap +
+        scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
+                             name = mean_txt)
+#      scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
+#                           name = mean_txt, limits = data_range)
+    }
+  }
+  else {
+    if ( trans == "log10" ) {
+      mymap <- mymap +
+        scale_fill_gradient(breaks = c(2, 4, 10, 100, 1000, 10000),
+                            low = "white",
+                            high = "red",
+                            space = "Lab",
+                            na.value = "white",
+                            name = mean_txt,
+                            trans = "log10")
+    }
+  }
+  if ( black_border ) {
+    mymap <- mymap +
+      geom_polygon(color = "black", fill = NA)
+  }
+  if ( ! is.null(outer_border_df) ) {
+    mymap <- mymap +
+      geom_polygon(data = outer_border_df, color = "black", fill = NA)
+  }
+  if ( ! is.null(caption) ) {
+    mymap <- mymap +
+      labs(caption = caption)
+  }
+  print(mymap)
+
+  if ( ! is.null(filename) ) {
+    dev.off()
+  }
+  file_to_bucket(filename)
+
+}
 
 
+make_maps <- function() {
+
+  usa <- map_data("usa")
+  states <- map_data("state")
+
+  # add Province_State to make merging easier
+  states$Province_State = str_to_title(states$region)
+  states_merged <- inner_join(states, us_states_wide, by = "Province_State")
+
+  wa_df <- subset(states, region == "washington")
+  wa_base <- ggplot(data = wa_df, mapping = aes(x = long, y = lat, group = group)) +
+    coord_fixed(1.3) +
+    geom_polygon(color = "black", fill = "gray")
+
+
+  counties <- map_data("county")
+  # make a combined key that matches our data
+  counties$Combined_Key <- paste(str_to_title(counties$subregion),
+                                 ", ",
+                                 str_to_title(counties$region),
+                                 ", US",
+                                 sep="")
+  counties <- mash_combined_key(counties)
+
+  # remove this
+ # desoto <- subset(counties, subregion == "desoto")
+  # hopkins data just doesn't have washignton county, utah?????!!!!
+#  wash_utah <- subset(counties, region == "utah" & subregion == "washington")
+#  utah <- subset(counties, region == "utah")
+#  wash_utah < subset(counties, combined_key_lc =="washington, utah, us")
+
+  counties_merged <- inner_join(counties, us_counties_wide, by = "combinedkeylc")
+
+  wa_counties_merged <- subset(counties_merged, region == "washington")
+
+  make_a_map_from_base(df = wa_counties_merged,
+                       var = "avrg14_per_hundy",
+                       base = wa_base,
+                       title = paste("Washington", main_daily_cases_hundy_14d_avrg_txt),
+                       filename = "map_wa_14avrg.jpg")
+  make_a_map_from_base(df = wa_counties_merged,
+                       var = "trend",
+                       midpoint = 0,
+                       base = wa_base,
+                       title = paste("Washington", main_14day_trend_txt),
+                       filename = "map_wa_trend.jpg")
+
+
+
+  states_base <- ggplot(data = states, mapping = aes(x = long, y = lat, group = factor(group))) +
+    geom_polygon(color = "white") +
+    coord_fixed(1.3)
+
+
+  make_a_map_from_base(df = states_merged,
+                       var = "avrg14_per_hundy",
+                       base = states_base,
+                       title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
+                       filename = "map_usa_14avrg.jpg")
+  make_a_map_from_base(df = states_merged,
+                       var = "trend",
+                       midpoint = 0,
+                       base = states_base,
+                       title = paste("USA", main_14day_trend_txt, "States"),
+                       filename = "map_usa_trend.jpg")
+
+  # us county
+  counties_base <- ggplot(data = counties, mapping = aes(x = long, y = lat, group = factor(group))) +
+    geom_polygon(color = "black") +
+    coord_fixed(1.3)
+
+  make_a_map_from_base(df = counties_merged,
+                       var = "avrg14_per_hundy",
+                       base = counties_base,
+                       title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
+                       trans = "log10",
+                       black_border = FALSE,
+                       outer_border_df = usa,
+                       caption = "(black or grey represends missing data)",
+                       filename = "map_usa_14avrg_c.jpg")
+  make_a_map_from_base(df = counties_merged,
+                       var = "trend",
+                       midpoint = 0,
+                       base = counties_base,
+                       title = paste("USA", main_14day_trend_txt, "Counties"),
+                       black_border = FALSE,
+                       outer_border_df = usa,
+                       caption = "(black or grey represends missing data)",
+                       filename = "map_usa_trend_c.jpg")
+
+  return()
+
+  ####################################################
+  # everything below here is testing
+  #
+  meanv = mean(counties_merged$avrg14_per_hundy)
+  mean_txt <- paste("Mean =", round(mid, digits = 1))
+  title <- paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties")
+  us_c_14avrg <- counties_base +
+    geom_polygon(data = counties_merged, aes(fill = avrg14_per_hundy)) +
+    #   geom_polygon(color = "black", fill = NA) +
+    theme_bw() +
+    ditch_the_axes +
+
+    scale_fill_gradient(breaks = c(2, 4, 10, 100, 1000, 10000),
+                        low = "white",
+                        high = "red",
+                        space = "Lab",
+                        na.value = "white",
+                        name = mean_txt,
+                        trans = "log10") +
+    labs(title = title,
+         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
+    theme(plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          plot.caption = element_text(hjust = 0.5))
+  print(us_c_14avrg)
+
+  meanv = mean(counties_merged$trend, na.rm = TRUE )
+  mean_txt <- paste("Mean =", round(mid, digits = 1))
+  title <- paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties")
+  us_c_14avrg <- counties_base +
+    geom_polygon(data = counties_merged, aes(fill = trend)) +
+    #   geom_polygon(color = "black", fill = NA) +
+    theme_bw() +
+    ditch_the_axes +
+    scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
+                         name = mean_txt) +
+    labs(title = title,
+         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
+    theme(plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          plot.caption = element_text(hjust = 0.5))
+  print(us_c_14avrg)
+
+
+#  make_a_map_from_base(df = counties_merged,
+#                       var = "avrg14_per_hundy",
+#                       base = states_base,
+#                       title = paste("USA Counties", main_daily_cases_hundy_14d_avrg_txt),
+#                       filename = NULL)
+#  filename = "map_wa_14avrg.jpg")
+#
+#tulare <- subset(counties_merged, subregion == "tulare")
+#tulare_map <- ggplot(data = tulare, mapping = aes(x = long, y = lat, group = group)) +
+#  coord_fixed(1.3) +
+#  geom_polygon(color = "black", fill = "gray") +
+#  geom_polygon(data = tulare, aes(fill = avrg14_per_hundy)) +
+#  scale_fill_gradient(trans = "log10")
+#tulare_map
+#
+#wash_utah <- subset(counties_merged, subregion == "washington" & region == "Utah")
+#mckinley_map <- ggplot(data = wash_utah, mapping = aes(x = long, y = lat, group = group)) +
+#  coord_fixed(1.3) +
+#  geom_polygon(color = "black", fill = "gray") +
+#  geom_polygon(data = wash_utah, aes(fill = avrg14_per_hundy)) +
+#  scale_fill_gradient(trans = "log10")
+#mckinley_map
+
+desoto <- subset(counties_merged, combinedkeylc == "desoto,louisiana,us")
+desoto_map <- ggplot(data = desoto, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) +
+  geom_polygon(color = "black", fill = "gray") +
+  geom_polygon(data = desoto, aes(fill = avrg14_per_hundy)) +
+  scale_fill_gradient(trans = "log10")
+desoto_map
 }
 
 prod <- function(version = 1.0) {
@@ -2044,9 +2375,11 @@ cat("Newday loaded\n")
 population <- get_population()
 cat("Population loaded\n")
 
-save_wa_data()
-
 prod(version=version)
+
+prep_wide_data()
+ret <- make_maps()
+
 warnings()
 #get_bucket(bucket)
 

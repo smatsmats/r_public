@@ -10,10 +10,19 @@ ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group = group)) +
   coord_fixed(1.3)
 
 states <- map_data("state")
-ggplot(data = states) +
+states_base <- ggplot(data = states) +
   geom_polygon(aes(x = long, y = lat, fill = region, group = group), color = "white") +
   coord_fixed(1.3) +
   guides(fill=FALSE)  # do this to leave off the color legend
+states_base
+states_base <- ggplot(data = states, mapping = aes(x = long, y = lat, group = factor(group))) +
+  geom_polygon(aes(x = long, y = lat, fill = "grey"), color = "white") +
+  coord_fixed(1.3)
+states_base
+
+# add Province_State to make merging easier
+states$Province_State = str_to_title(states$region)
+states_merged <- inner_join(states, us_states_wide, by = "Province_State")
 
 
 west_coast <- subset(states, region %in% c("california", "oregon", "washington"))
@@ -36,6 +45,7 @@ wa_base + theme_nothing() +
 
 
 
+
 # make a combined key that matches our data
 wa_county$Combined_Key <- paste(str_to_title(wa_county$subregion),
                                 ", ",
@@ -45,7 +55,7 @@ wa_county$Combined_Key <- paste(str_to_title(wa_county$subregion),
 
 
 
-wacopa <- inner_join(wa_county, us_counties, by = "Combined_Key")
+wacopa <- inner_join(wa_county, us_counties_wide, by = "Combined_Key")
 
 
 # prepare to drop the axes and ticks but leave the guides and legends
@@ -87,4 +97,40 @@ trend2 <- trend1 +
                        high = "red", space = "Lab" )
 trend2
 
+
+wa_base <- ggplot(data = wa_df, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) +
+  geom_polygon(color = "black", fill = "gray")
+wa_base + theme_nothing()
+wa_base + theme_nothing() +
+  geom_polygon(data = wa_county, fill = NA, color = "white") +
+  geom_polygon(color = "black", fill = NA)  # get the state border back on top
+
+states_base <- ggplot(data = states, mapping = aes(x = long, y = lat, group = factor(group))) +
+  geom_polygon(color = "white") +
+  coord_fixed(1.3)
+states_base
+states_14day_avgr <- states_base +
+  geom_polygon(data = states_merged, aes(fill = avrg14_per_hundy), color = "white") +
+  geom_polygon(color = "black", fill = NA) +
+  theme_bw() +
+  ditch_the_axes
+states_14day_avgr
+mid <- mean(states_merged$avrg14_per_hund)
+states_14day_avgr1 <- states_14day_avgr +
+  scale_fill_gradient2(midpoint = mid, low = "blue", mid = "white",
+                       high = "red", space = "Lab" )
+states_14day_avgr1
+
+states_trend1 <- states_base +
+  geom_polygon(data = states_merged, aes(fill = trend), color = "white") +
+  geom_polygon(color = "black", fill = NA) +
+  theme_bw() +
+  ditch_the_axes
+
+states_trend1
+states_trend2 <- states_trend1 +
+  scale_fill_gradient2(midpoint = 0, low = "blue", mid = "white",
+                       high = "red", space = "Lab" )
+states_trend2
 
