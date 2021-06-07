@@ -1482,6 +1482,7 @@ if ( live_mode ) {
 make_a_map_from_base <- function(df, var, base,
                                  title,
                                  midpoint = "mean",
+                                 lowpoint = NULL,
                                  trans = NULL,
                                  black_border = TRUE,
                                  outer_border_df = NULL,
@@ -1503,11 +1504,18 @@ make_a_map_from_base <- function(df, var, base,
     jpeg(filename = filename, width = plot_file_width, height = plot_file_height)
   }
   meanv <- mean(df[,var], na.rm = TRUE)
-  med <- median(meanv <- mean(df[,var], na.rm = TRUE))
   mean_txt <- paste("Mean =", round(meanv, digits = 1))
+  med <- median(meanv <- mean(df[,var], na.rm = TRUE))
+
   iqr <- IQR(df[,var], na.rm = TRUE)
-  data_range <- c(med-iqr*1.5, iqr*1.5+med)
+  if ( is.null(lowpoint) ) {
+    data_range <- c(med-iqr*1.5, iqr*1.5+med)
+  }
+  else {
+    data_range <- c(lowpoint, iqr*1.5+med)
+  }
   print(paste("iqr", iqr, "med", med, "range", data_range))
+
   mymap <- base +
     geom_polygon(data = df, aes(fill = get(var))) +
   #  geom_polygon(data = df, aes(fill = get(var)), color = "white") +
@@ -1521,17 +1529,19 @@ make_a_map_from_base <- function(df, var, base,
   if ( is.null(trans) ) {
     if ( midpoint == "mean" ) {
       mymap <- mymap +
-        scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
-                             name = mean_txt)
-#      scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
-#                           name = mean_txt, limits = data_range)
+#        scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
+#                             name = mean_txt)
+         scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
+                              name = mean_txt, 
+                              limits = data_range, oob = scales::squish)
     }
     else {
       mymap <- mymap +
-        scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
-                             name = mean_txt)
-#      scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
-#                           name = mean_txt, limits = data_range)
+#        scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
+#                             name = mean_txt)
+         scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
+                              name = mean_txt,
+                              limits = data_range, oob = scales::squish)
     }
   }
   else {
@@ -1606,6 +1616,7 @@ make_maps <- function() {
   make_a_map_from_base(df = wa_counties_merged,
                        var = "avrg14_per_hundy",
                        base = wa_base,
+                       lowpoint = 0,
                        title = paste("Washington", main_daily_cases_hundy_14d_avrg_txt),
                        filename = "map_wa_14avrg.jpg")
   make_a_map_from_base(df = wa_counties_merged,
@@ -1624,6 +1635,7 @@ make_maps <- function() {
 
   make_a_map_from_base(df = states_merged,
                        var = "avrg14_per_hundy",
+                       lowpoint = 0,
                        base = states_base,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
                        filename = "map_usa_14avrg.jpg")
@@ -1641,6 +1653,7 @@ make_maps <- function() {
 
   make_a_map_from_base(df = counties_merged,
                        var = "avrg14_per_hundy",
+                       lowpoint = 0,
                        base = counties_base,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
                        trans = "log10",
