@@ -1487,6 +1487,8 @@ make_a_map_from_base <- function(df, var, base,
                                  trans = NULL,
                                  border1_color = NULL,
                                  border1_df = NULL,
+                                 border2_color = NULL,
+                                 border2_df = NULL,
                                  caption = NULL,
                                  filename = NULL) {
 
@@ -1559,6 +1561,13 @@ make_a_map_from_base <- function(df, var, base,
     mymap <- mymap +
       geom_polygon(data = border1_df, color = border1_color, fill = NA)
   }
+  if ( ! is.null(border2_df) ) {
+    if ( is.null(border2_color) ) {
+      border2_color <- "black"
+    }
+    mymap <- mymap +
+      geom_polygon(data = border2_df, color = border2_color, fill = NA)
+  }
   if ( ! is.null(caption) ) {
     mymap <- mymap +
       labs(caption = caption)
@@ -1614,6 +1623,7 @@ make_maps <- function() {
                        lowpoint = 0,
                        border1_color = "grey",
                        border1_df = wa_counties_merged,
+                       border2_df = wa_df,
                        title = paste("Washington", main_daily_cases_hundy_14d_avrg_txt),
                        filename = "map_wa_14avrg.jpg")
   make_a_map_from_base(df = wa_counties_merged,
@@ -1621,6 +1631,7 @@ make_maps <- function() {
                        midpoint = 0,
                        border1_color = "grey",
                        border1_df = wa_counties_merged,
+                       border2_df = wa_df,
                        base = wa_base,
                        title = paste("Washington", main_14day_trend_txt),
                        filename = "map_wa_trend.jpg")
@@ -1638,6 +1649,7 @@ make_maps <- function() {
                        base = states_base,
                        border1_color = "grey",
                        border1_df = states,
+                       border2_df = usa,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
                        filename = "map_usa_14avrg.jpg")
   make_a_map_from_base(df = states_merged,
@@ -1646,6 +1658,7 @@ make_maps <- function() {
                        base = states_base,
                        border1_color = "grey",
                        border1_df = states,
+                       border2_df = usa,
                        title = paste("USA", main_14day_trend_txt, "States"),
                        filename = "map_usa_trend.jpg")
 
@@ -1660,7 +1673,6 @@ make_maps <- function() {
                        base = counties_base,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
                        trans = "log10",
-                       border1_color = FALSE,
                        border1_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_14avrg_c.jpg")
@@ -1669,7 +1681,6 @@ make_maps <- function() {
                        midpoint = 0,
                        base = counties_base,
                        title = paste("USA", main_14day_trend_txt, "Counties"),
-                       border1_color = FALSE,
                        border1_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_trend_c.jpg")
