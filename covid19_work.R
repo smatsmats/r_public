@@ -43,6 +43,7 @@ USA_ALL <- TRUE
 USE_GGPLOT <- TRUE
 PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
+KEEP_FILES <- FALSE
 
 if ( Sys.getenv("AWS_DEFAULT_REGION") == "" ) {
   cat("No AWS creds in environment\n")
@@ -96,7 +97,7 @@ file_to_bucket <- function(file, unlink_after = TRUE) {
                verbose = TRUE,
                show_progress = FALSE)
   }
-  if ( unlink_after ) {
+  if ( unlink_after & ! KEEP_FILES ) {
     unlink(file)
   }
 
@@ -1532,7 +1533,7 @@ make_a_map_from_base <- function(df, var, base,
 #        scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
 #                             name = mean_txt)
          scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
-                              name = mean_txt, 
+                              name = mean_txt,
                               limits = data_range, oob = scales::squish)
     }
     else {
