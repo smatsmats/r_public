@@ -1,25 +1,17 @@
-#library("NLP")
-#library("tm")
-#library("plotly")
-#library("tictoc")
-
-# don't know about these
-#library("rsconnect")
-#library("methods")
-
 # for sure these
 library("aws.s3")
 library("zoo")
 library("scales")
 
 #library("tidyverse")   # maybe we don't need the whole -verse
-# todyverse things
+# tidyverse things
 library("dplyr")
 library("lubridate")
 library("tidyr")
 library("ggplot2")
 library("stringr")
 
+# mapping packages
 library("ggmap")
 library("maps")
 library("mapdata")
@@ -45,6 +37,7 @@ PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
 KEEP_FILES <- FALSE
 
+# don't push to amazon if we don't have the environment vars
 if ( Sys.getenv("AWS_DEFAULT_REGION") == "" ) {
   cat("No AWS creds in environment\n")
   cat("turning off AWS pushes")
@@ -82,8 +75,6 @@ if (length(args)==0) {
 }
 live_mode= FALSE
 version = 3.0
-
-#  profvis({
 
 file_to_bucket <- function(file, unlink_after = TRUE) {
 
@@ -1476,10 +1467,6 @@ if ( live_mode ) {
   prep_wide_data()
 }
 
-# to do
-# cleanup
-# do something about limits and outliers
-# borders for counties in WA
 make_a_map_from_base <- function(df, var, base,
                                  title,
                                  midpoint = "mean",
@@ -1503,9 +1490,6 @@ make_a_map_from_base <- function(df, var, base,
     axis.title = element_blank()
   )
 
-  if ( ! is.null(filename) ) {
-    jpeg(filename = filename, width = plot_file_width, height = plot_file_height)
-  }
   meanv <- mean(df[,var], na.rm = TRUE)
   mean_txt <- paste("Mean =", round(meanv, digits = 1))
   med <- median(meanv <- mean(df[,var], na.rm = TRUE))
@@ -1517,7 +1501,13 @@ make_a_map_from_base <- function(df, var, base,
   else {
     data_range <- c(lowpoint, iqr*1.5+med)
   }
-  print(paste("iqr", iqr, "med", med, "range", data_range))
+  if ( VERBOSE ) {
+    print(paste("iqr", iqr, "med", med, "range", data_range))
+  }
+
+  if ( ! is.null(filename) ) {
+    jpeg(filename = filename, width = plot_file_width, height = plot_file_height)
+  }
 
   mymap <- base +
     geom_polygon(data = df, aes(fill = get(var))) +
@@ -1596,7 +1586,6 @@ make_maps <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
 
-
   counties <- map_data("county")
   # make a combined key that matches our data
   counties$Combined_Key <- paste(str_to_title(counties$subregion),
@@ -1605,13 +1594,6 @@ make_maps <- function() {
                                  ", US",
                                  sep="")
   counties <- mash_combined_key(counties)
-
-  # remove this
- # desoto <- subset(counties, subregion == "desoto")
-  # hopkins data just doesn't have washignton county, utah?????!!!!
-#  wash_utah <- subset(counties, region == "utah" & subregion == "washington")
-#  utah <- subset(counties, region == "utah")
-#  wash_utah < subset(counties, combined_key_lc =="washington, utah, us")
 
   counties_merged <- inner_join(counties, us_counties_wide, by = "combinedkeylc")
 
@@ -1637,11 +1619,9 @@ make_maps <- function() {
                        filename = "map_wa_trend.jpg")
 
 
-
   states_base <- ggplot(data = states, mapping = aes(x = long, y = lat, group = factor(group))) +
     geom_polygon(color = "white") +
     coord_fixed(1.3)
-
 
   make_a_map_from_base(df = states_merged,
                        var = "avrg14_per_hundy",
@@ -1662,7 +1642,8 @@ make_maps <- function() {
                        title = paste("USA", main_14day_trend_txt, "States"),
                        filename = "map_usa_trend.jpg")
 
-  # us county
+
+  # us county maps
   counties_base <- ggplot(data = counties, mapping = aes(x = long, y = lat, group = factor(group))) +
     geom_polygon(color = "black") +
     coord_fixed(1.3)
@@ -1686,81 +1667,6 @@ make_maps <- function() {
                        filename = "map_usa_trend_c.jpg")
 
   return()
-
-  ####################################################
-  # everything below here is testing
-  #
-  meanv = mean(counties_merged$avrg14_per_hundy)
-  mean_txt <- paste("Mean =", round(mid, digits = 1))
-  title <- paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties")
-  us_c_14avrg <- counties_base +
-    geom_polygon(data = counties_merged, aes(fill = avrg14_per_hundy)) +
-    #   geom_polygon(color = "black", fill = NA) +
-    theme_bw() +
-    ditch_the_axes +
-
-    scale_fill_gradient(breaks = c(2, 4, 10, 100, 1000, 10000),
-                        low = "white",
-                        high = "red",
-                        space = "Lab",
-                        na.value = "white",
-                        name = mean_txt,
-                        trans = "log10") +
-    labs(title = title,
-         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
-    theme(plot.title = element_text(hjust = 0.5),
-          plot.subtitle = element_text(hjust = 0.5),
-          plot.caption = element_text(hjust = 0.5))
-  print(us_c_14avrg)
-
-  meanv = mean(counties_merged$trend, na.rm = TRUE )
-  mean_txt <- paste("Mean =", round(mid, digits = 1))
-  title <- paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties")
-  us_c_14avrg <- counties_base +
-    geom_polygon(data = counties_merged, aes(fill = trend)) +
-    #   geom_polygon(color = "black", fill = NA) +
-    theme_bw() +
-    ditch_the_axes +
-    scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
-                         name = mean_txt) +
-    labs(title = title,
-         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y"))) +
-    theme(plot.title = element_text(hjust = 0.5),
-          plot.subtitle = element_text(hjust = 0.5),
-          plot.caption = element_text(hjust = 0.5))
-  print(us_c_14avrg)
-
-
-#  make_a_map_from_base(df = counties_merged,
-#                       var = "avrg14_per_hundy",
-#                       base = states_base,
-#                       title = paste("USA Counties", main_daily_cases_hundy_14d_avrg_txt),
-#                       filename = NULL)
-#  filename = "map_wa_14avrg.jpg")
-#
-#tulare <- subset(counties_merged, subregion == "tulare")
-#tulare_map <- ggplot(data = tulare, mapping = aes(x = long, y = lat, group = group)) +
-#  coord_fixed(1.3) +
-#  geom_polygon(color = "black", fill = "gray") +
-#  geom_polygon(data = tulare, aes(fill = avrg14_per_hundy)) +
-#  scale_fill_gradient(trans = "log10")
-#tulare_map
-#
-#wash_utah <- subset(counties_merged, subregion == "washington" & region == "Utah")
-#mckinley_map <- ggplot(data = wash_utah, mapping = aes(x = long, y = lat, group = group)) +
-#  coord_fixed(1.3) +
-#  geom_polygon(color = "black", fill = "gray") +
-#  geom_polygon(data = wash_utah, aes(fill = avrg14_per_hundy)) +
-#  scale_fill_gradient(trans = "log10")
-#mckinley_map
-
-desoto <- subset(counties_merged, combinedkeylc == "desoto,louisiana,us")
-desoto_map <- ggplot(data = desoto, mapping = aes(x = long, y = lat, group = group)) +
-  coord_fixed(1.3) +
-  geom_polygon(color = "black", fill = "gray") +
-  geom_polygon(data = desoto, aes(fill = avrg14_per_hundy)) +
-  scale_fill_gradient(trans = "log10")
-desoto_map
 }
 
 prod <- function(version = 1.0) {
@@ -2408,32 +2314,3 @@ prep_wide_data()
 ret <- make_maps()
 
 warnings()
-#get_bucket(bucket)
-
-#india <- get_admin0(country = "india")
-#make_plot(india, "India", daily_cases = TRUE)
-#india <- get_admin0(country = "US")
-#make_plot(india, "US", daily_cases = TRUE)
-
-#jpeg(filename = "rplot.jpg", width = 350, height = 350)
-#plot
-#dev.off()
-#result <- rpubsUpload("My document title", "Document.html")
-#if (!is.null(result$continueUrl)) {
-#  browseURL(result$continueUrl)
-#} else {
-#  stop(result$error)
-#}
-
-
-
-# definition of S4 class
-#Area <- setClass("Area", slots=list(type = "county",
-#                            pop = 0,
-#                            name = "fake county",
-#                            admin2 = "county name",
-#                            admin1 = "state name",
- #                           displayname = "County, State"))
-#wa_ic <- new("Area", type = "county",
-#             admin1 = "Washington",
-#             admin2 = "Island")
