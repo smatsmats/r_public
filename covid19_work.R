@@ -1485,8 +1485,8 @@ make_a_map_from_base <- function(df, var, base,
                                  midpoint = "mean",
                                  lowpoint = NULL,
                                  trans = NULL,
-                                 black_border = TRUE,
-                                 outer_border_df = NULL,
+                                 border1_color = NULL,
+                                 border1_df = NULL,
                                  caption = NULL,
                                  filename = NULL) {
 
@@ -1519,7 +1519,6 @@ make_a_map_from_base <- function(df, var, base,
 
   mymap <- base +
     geom_polygon(data = df, aes(fill = get(var))) +
-  #  geom_polygon(data = df, aes(fill = get(var)), color = "white") +
     theme_bw() +
     ditch_the_axes +
     labs(title = title,
@@ -1530,16 +1529,12 @@ make_a_map_from_base <- function(df, var, base,
   if ( is.null(trans) ) {
     if ( midpoint == "mean" ) {
       mymap <- mymap +
-#        scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
-#                             name = mean_txt)
          scale_fill_gradient2(midpoint = meanv, low = "blue", mid = "white", high = "red",
                               name = mean_txt,
                               limits = data_range, oob = scales::squish)
     }
     else {
       mymap <- mymap +
-#        scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
-#                             name = mean_txt)
          scale_fill_gradient2(midpoint = midpoint, low = "blue", mid = "white", high = "red",
                               name = mean_txt,
                               limits = data_range, oob = scales::squish)
@@ -1557,13 +1552,12 @@ make_a_map_from_base <- function(df, var, base,
                             trans = "log10")
     }
   }
-  if ( black_border ) {
+  if ( ! is.null(border1_df) ) {
+    if ( is.null(border1_color) ) {
+      border1_color <- "black"
+    }
     mymap <- mymap +
-      geom_polygon(color = "black", fill = NA)
-  }
-  if ( ! is.null(outer_border_df) ) {
-    mymap <- mymap +
-      geom_polygon(data = outer_border_df, color = "black", fill = NA)
+      geom_polygon(data = border1_df, color = border1_color, fill = NA)
   }
   if ( ! is.null(caption) ) {
     mymap <- mymap +
@@ -1618,11 +1612,15 @@ make_maps <- function() {
                        var = "avrg14_per_hundy",
                        base = wa_base,
                        lowpoint = 0,
+                       border1_color = "grey",
+                       border1_df = wa_counties_merged,
                        title = paste("Washington", main_daily_cases_hundy_14d_avrg_txt),
                        filename = "map_wa_14avrg.jpg")
   make_a_map_from_base(df = wa_counties_merged,
                        var = "trend",
                        midpoint = 0,
+                       border1_color = "grey",
+                       border1_df = wa_counties_merged,
                        base = wa_base,
                        title = paste("Washington", main_14day_trend_txt),
                        filename = "map_wa_trend.jpg")
@@ -1638,12 +1636,16 @@ make_maps <- function() {
                        var = "avrg14_per_hundy",
                        lowpoint = 0,
                        base = states_base,
+                       border1_color = "grey",
+                       border1_df = states,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
                        filename = "map_usa_14avrg.jpg")
   make_a_map_from_base(df = states_merged,
                        var = "trend",
                        midpoint = 0,
                        base = states_base,
+                       border1_color = "grey",
+                       border1_df = states,
                        title = paste("USA", main_14day_trend_txt, "States"),
                        filename = "map_usa_trend.jpg")
 
@@ -1658,8 +1660,8 @@ make_maps <- function() {
                        base = counties_base,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
                        trans = "log10",
-                       black_border = FALSE,
-                       outer_border_df = usa,
+                       border1_color = FALSE,
+                       border1_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_14avrg_c.jpg")
   make_a_map_from_base(df = counties_merged,
@@ -1667,8 +1669,8 @@ make_maps <- function() {
                        midpoint = 0,
                        base = counties_base,
                        title = paste("USA", main_14day_trend_txt, "Counties"),
-                       black_border = FALSE,
-                       outer_border_df = usa,
+                       border1_color = FALSE,
+                       border1_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_trend_c.jpg")
 
