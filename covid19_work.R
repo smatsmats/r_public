@@ -35,7 +35,7 @@ USA_ALL <- TRUE
 USE_GGPLOT <- TRUE
 PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
-KEEP_FILES <- FALSE
+KEEP_FILES <- TRUE
 
 # don't push to amazon if we don't have the environment vars
 if ( Sys.getenv("AWS_DEFAULT_REGION") == "" ) {
@@ -204,6 +204,21 @@ newday <- function(version = 3.0) {
                                id_cols=Province_State,
                                names_from = dates,
                                values_from = cases)
+
+}
+
+vax_data <- function() {
+  vax_global_wide_raw <<- read.csv("https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/global_data/time_series_covid19_vaccine_doses_admin_global.csv")
+  vax_us_wide_raw <<- read.csv("https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/us_data/time_series/time_series_covid19_vaccine_doses_admin_US.csv")
+  vax_global_wide <- mash_combined_key(vax_global_wide_raw)
+  vax_us_wide <- mash_combined_key(vax_us_wide_raw)
+  latest_g <- dim(vax_global_wide_raw)[2] - 1
+  latest_u <- dim(vax_us_wide_raw)[2] - 1
+
+  vax_global_wide <<- summarize_vax_wide_data(vax_global_wide, latest_g)
+  vax_us_wide <<- summarize_vax_wide_data(vax_us_wide, latest_u)
+
+  write.csv(vax_us_wide, "vax_us_wide.csv")
 
 }
 
@@ -1398,6 +1413,15 @@ make_14_sum <- function(df, coln) {
   return(df)
 }
 
+summarize_vax_wide_data <- function(df, latest_col) {
+  df$latest <- df[,latest_col]
+  df$vax_pct <- df$latest / df$Population
+  df$week2ago <- df[,(latest_col - 14)]
+  df$trend <-  df$latest - df$week2ago
+
+  return(df)
+}
+
 summarize_wide_data <- function(df, latest_col) {
   df$latest <- df[,latest_col]
   df <- make_14_sum(df, latest_col)
@@ -1414,8 +1438,7 @@ summarize_wide_data <- function(df, latest_col) {
   df$week2ago_per_hundy <- df$week2ago / df$Population * 100000
   df$week2ago_avrg14_per_hundy <- df$week2ago_avrg14 / df$Population * 100000
   df$trend <-  df$avrg14_per_hundy - df$week2ago_avrg14_per_hundy
-#  df$FIPS_str <- paste("'", df$FIPS, "'", sep="")
-#  df$FIPS_str <- paste(df$FIPS)
+
   return(df)
 }
 
@@ -1580,6 +1603,7 @@ make_maps <- function() {
   # add Province_State to make merging easier
   states$Province_State = str_to_title(states$region)
   states_merged <- inner_join(states, us_states_wide, by = "Province_State")
+  vax_states_merged <- inner_join(states, vax_us_wide, by = "Province_State")
 
   wa_df <- subset(states, region == "washington")
   wa_base <- ggplot(data = wa_df, mapping = aes(x = long, y = lat, group = group)) +
@@ -1642,6 +1666,15 @@ make_maps <- function() {
                        title = paste("USA", main_14day_trend_txt, "States"),
                        filename = "map_usa_trend.jpg")
 
+  make_a_map_from_base(df = vax_states_merged,
+                       var = "vax_pct",
+                       lowpoint = 0,
+                       base = states_base,
+                       border1_color = "grey",
+                       border1_df = states,
+                       border2_df = usa,
+                       title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
+                       filename = "vax1.jpg")
 
   # us county maps
   counties_base <- ggplot(data = counties, mapping = aes(x = long, y = lat, group = factor(group))) +
@@ -1654,7 +1687,9 @@ make_maps <- function() {
                        base = counties_base,
                        title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
                        trans = "log10",
-                       border1_df = usa,
+                       border1_color = "grey",
+                       border1_df = states,
+                       border2_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_14avrg_c.jpg")
   make_a_map_from_base(df = counties_merged,
@@ -1662,7 +1697,9 @@ make_maps <- function() {
                        midpoint = 0,
                        base = counties_base,
                        title = paste("USA", main_14day_trend_txt, "Counties"),
-                       border1_df = usa,
+                       border1_color = "grey",
+                       border1_df = states,
+                       border2_df = usa,
                        caption = "(black or grey represends missing data)",
                        filename = "map_usa_trend_c.jpg")
 
@@ -2301,6 +2338,9 @@ cat("Code loaded\n")
 
 onetime(version=version)
 cat("OneTime loaded\n")
+
+vax_data()
+cat("Vax Data loaded\n")
 
 newday(version=version)
 cat("Newday loaded\n")
