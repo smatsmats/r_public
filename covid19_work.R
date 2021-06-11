@@ -3016,10 +3016,10 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = south_dakota, colour = south_dakota_s_txt)) +
       geom_line(aes(y = wyoming, colour = wyoming_s_txt)) +
       geom_line(aes(y = colorado, colour = colorado_s_txt)) +
-      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
+#      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
       geom_line(aes(y = missouri, colour = missouri_s_txt)) +
       geom_line(aes(y = iowa, colour = iowa_s_txt)) +
-      scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
+ #     scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
       ylim(0, maxy) +
       labs(
         title = paste("Really Nebraska?", main_daily_cases_hundy_14d_avrg_txt),
