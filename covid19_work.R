@@ -3008,7 +3008,7 @@ prod <- function(version = 1.0) {
        width = plot_file_width,
        height = plot_file_height)
   
-  maxy = max(colorado_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  maxy = max(south_dakota_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
   if (USE_GGPLOT) {
     p <- ggplot(data = temp_df, aes(dates)) +
