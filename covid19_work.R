@@ -3,7 +3,7 @@ library("aws.s3")
 library("zoo")
 library("scales")
 
-#library("tidyverse")   # maybe we don"t need the whole -verse
+#library("tidyverse")   # maybe we don't need the whole -verse
 # tidyverse things
 library("dplyr")
 library("lubridate")
@@ -17,7 +17,7 @@ library("maps")
 library("mapdata")
 
 # design decisions
-# - don"t combine plotting and making df"s
+# - don't combine plotting and making df"s
 # - except where it makes sense, i.e. build all states
 #
 # work to do
@@ -38,7 +38,7 @@ PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
 KEEP_FILES <- FALSE
 
-# don"t push to amazon if we don"t have the environment vars
+# don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
   cat("No AWS creds in environment\n")
   cat("turning off AWS pushes")
@@ -183,7 +183,7 @@ onetime <- function(version = 1.0) {
         "https://docs.google.com/uc?id=15pWPcFsrx-MhzXdzqFtVOGhr2swooRvE&export=download"
       )
   }
-  # don"t use this anywhere
+  # don't use this anywhere
   #steve_usa <<- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSrt-fhmYSJ4BUiombXneAsK9BRLyRxwqxxu47pkpiFP6ZgRrXwm4V7frh_rtwPqQAIrCm4RrT8TFkM/pub?gid=931635221&single=true&output=csv")
 
   # info on wa counties
@@ -386,7 +386,7 @@ get_pop_uscensus <- function(state, county = "Total") {
   }
 
   if (nrow(row) != 1) {
-    print(paste("FAIL: can"t get pop for", county, state))
+    print(paste("FAIL: can't get pop for", county, state))
     return(0)
   }
   pop <- row$POPESTIMATE2019
@@ -1337,7 +1337,7 @@ get_admin1 <- function(admin1,
   }
   else  {
     country <-
-      admin0  #  ARRRG I don"t understand why this is needed!!!!
+      admin0  #  ARRRG I don't understand why this is needed!!!!
     state_cases_t <- as.data.frame(subset(
       global_confirmed_t,
       grepl(country,
@@ -1388,20 +1388,12 @@ get_admin0 <- function(country_in, version = 3.0) {
 }
 
 
-mk_state_string <- function(state) {
+make_state_string <- function(state) {
   s <- tolower(state)
-  str_replace_all(tolower(s), " ", "_")
+  s <- str_replace_all(tolower(s), " ", "_")
   return(s)
 }
 
-#  usa_cases <- build_all_states(separate = TRUE,
-#                 combined = TRUE,
-#                 keep_dfs = FALSE,
-#                 plot_redblue = FALSE,
-#                 plot_redblue_cases = FALSE,
-#                 plot_wa_and = FALSE,
-#                 push2amazon = TRUE,
-#                 version = version)
 build_all_states <- function(combined = TRUE,
                              keep_dfs = FALSE,
                              plot_wa_and = FALSE,
@@ -1434,9 +1426,19 @@ build_all_states <- function(combined = TRUE,
     }
 
     if (keep_dfs) {
-      st_string <- mk_state_string(state)
+      st_string <- make_state_string(state)
       new_df_name <- paste(st_string, "_df", sep = "")
+      print(paste("about to assign new_df to", new_df_name, "for state", state))
       assign(new_df_name, new_df, envir = .GlobalEnv)
+      
+      # make the text name for graphs
+      txt_arg <- paste(st_string, "_s_txt", sep = "")
+      txt_value <- paste(state,
+                         " State (pop=",
+                         pop_format(new_df$pop[1]),
+                         ")", 
+                         sep = "")
+      assign(txt_arg, txt_value, envir = .GlobalEnv)
     }
 
     if (combined) {
@@ -1491,8 +1493,7 @@ build_all_states <- function(combined = TRUE,
 
       if (USE_GGPLOT == FALSE) {
         max_new_y = max(new_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
-        ifelse(max_wa_y > max_new_y, maxy <-
-                 max_wa_y, maxy <- max_new_y)
+        maxy <- if(max_wa_y > max_new_y) {max_wa_y} else {max_new_y}
         s_txt <-
           paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep = "")
 
@@ -1821,7 +1822,7 @@ make_a_map_from_base <- function(df,
                                  caption = NULL,
                                  filename = NULL) {
   # prepare to drop the axes and ticks but leave the guides and legends
-  # We can"t just throw down a theme_nothing()!
+  # We can't just throw down a theme_nothing()!
   ditch_the_axes <- theme(
     axis.text = element_blank(),
     axis.line = element_blank(),
@@ -2058,7 +2059,7 @@ make_maps <- function() {
     lowpoint = 0,
     base = counties_base,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
-    trans = "log10",
+#    trans = "log10",
     border1_color = "grey",
     border1_df = states,
     border2_df = usa,
@@ -2085,7 +2086,7 @@ prod <- function(version = 1.0) {
   if (USA_ALL) {
     usa_cases <- build_all_states(
       combined = TRUE,
-      keep_dfs = FALSE,
+      keep_dfs = TRUE,
       plot_state_cases_per_hundy = TRUE,
       plot_wa_and = TRUE,
       plot_daily_cases = TRUE,
@@ -2128,7 +2129,7 @@ prod <- function(version = 1.0) {
     get_admin2("Washington", "San Juan", version = version)
   jeff_cases <-
     get_admin2("Washington", "Jefferson", version = version)
-  india <- get_admin0(country = "india")
+  # india <- get_admin0(country = "india")
 
   wa_cases <- get_admin1(admin1 = "Washington", version = version)
   wa_s_txt <-
@@ -2247,8 +2248,8 @@ prod <- function(version = 1.0) {
     usa_txt <-
       paste("USA (pop=", pop_format(usa_cases$pop[1]), ")", sep = "")
   }
-  india_txt <-
-    paste("India (pop=", pop_format(india$pop[1]), ")", sep = "")
+#  india_txt <-
+#    paste("India (pop=", pop_format(india$pop[1]), ")", sep = "")
 
   ##############################################################################
   filename = "my_perhundy_select.jpg"
@@ -2840,17 +2841,23 @@ prod <- function(version = 1.0) {
 
   if (USE_GGPLOT) {
     temp_df <- data.frame(
-      dates = wa_cases$dates,
-      or = or_cases$daily_cases_per_hundy_avrg14d,
-      mi = mi_cases$daily_cases_per_hundy_avrg14d,
-      wa = wa_cases$daily_cases_per_hundy_avrg14d,
-      ca = ca_cases$daily_cases_per_hundy_avrg14d,
-      md = md_cases$daily_cases_per_hundy_avrg14d,
-      id = id_cases$daily_cases_per_hundy_avrg14d,
-      mt = mt_cases$daily_cases_per_hundy_avrg14d,
+      dates = washington_df$dates,
+      or = oregon_df$daily_cases_per_hundy_avrg14d,
+      mi = michigan_df$daily_cases_per_hundy_avrg14d,
+      wa = washington_df$daily_cases_per_hundy_avrg14d,
+      ca = california_df$daily_cases_per_hundy_avrg14d,
+      md = maryland_df$daily_cases_per_hundy_avrg14d,
+      id = idaho_df$daily_cases_per_hundy_avrg14d,
+      mt = montana_df$daily_cases_per_hundy_avrg14d,
       ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
-      india = india$daily_cases_per_hundy_avrg14d,
-      usa = usa_cases$daily_cases_per_hundy_avrg14d
+      usa = usa_cases$daily_cases_per_hundy_avrg14d,
+      nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
+      south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
+      wyoming = wyoming_df$daily_cases_per_hundy_avrg14d,
+      colorado = colorado_df$daily_cases_per_hundy_avrg14d,
+      kansas = kansas_df$daily_cases_per_hundy_avrg14d,
+      missouri = missouri_df$daily_cases_per_hundy_avrg14d,
+      iowa = iowa_df$daily_cases_per_hundy_avrg14d
     )
     p <- ggplot(data = temp_df, aes(dates)) +
       geom_line(aes(y = or, colour = or_s_txt)) +
@@ -2944,6 +2951,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
+  
   ##############################################################################
   # MISC2222222222222222222222
   # multiple counties 14 day
@@ -2992,6 +3000,56 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
 
+  ##############################################################################
+  # MISC2222222222222222222222bbbb
+  # multiple counties 14 day
+  filename = "misc2.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  
+  maxy = max(colorado_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  
+  if (USE_GGPLOT) {
+    p <- ggplot(data = temp_df, aes(dates)) +
+      geom_line(aes(y = nebraska, colour = nebraska_s_txt)) +
+      geom_line(aes(y = south_dakota, colour = south_dakota_s_txt)) +
+      geom_line(aes(y = wyoming, colour = wyoming_s_txt)) +
+      geom_line(aes(y = colorado, colour = colorado_s_txt)) +
+      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
+      geom_line(aes(y = missouri, colour = missouri_s_txt)) +
+      geom_line(aes(y = iowa, colour = iowa_s_txt)) +
+      scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
+      ylim(0, maxy) +
+      labs(
+        title = paste("Really Nebraska?", main_daily_cases_hundy_14d_avrg_txt),
+        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+        x = "Dates",
+        y = ylab_daily_cases_hundy_txt
+      ) +
+      theme_bw() +
+      theme(
+        panel.grid.minor = element_blank(),
+        #            panel.grid.major = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        plot.caption = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = c(0.35, 0.87),
+        legend.background = element_rect(
+          linetype = "solid",
+          size = 0.2,
+          colour = "black"
+        )
+      )
+    print(p)
+    
+  } # if use ggplot
+  
+  dev.off()
+  file_to_bucket(filename)
+  
 }  #prod
 
 if (live_mode) {
