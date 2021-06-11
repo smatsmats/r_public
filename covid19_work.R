@@ -3,7 +3,7 @@ library("aws.s3")
 library("zoo")
 library("scales")
 
-#library("tidyverse")   # maybe we don't need the whole -verse
+#library("tidyverse")   # maybe we don"t need the whole -verse
 # tidyverse things
 library("dplyr")
 library("lubridate")
@@ -17,7 +17,7 @@ library("maps")
 library("mapdata")
 
 # design decisions
-# - don't combine plotting and making df's
+# - don"t combine plotting and making df"s
 # - except where it makes sense, i.e. build all states
 #
 # work to do
@@ -36,9 +36,9 @@ USA_ALL <- TRUE
 USE_GGPLOT <- TRUE
 PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
-KEEP_FILES <- TRUE
+KEEP_FILES <- FALSE
 
-# don't push to amazon if we don't have the environment vars
+# don"t push to amazon if we don"t have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
   cat("No AWS creds in environment\n")
   cat("turning off AWS pushes")
@@ -46,7 +46,7 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 }
 
 # constants
-bucket <- 'rbucket-matsmats'
+bucket <- "rbucket-matsmats"
 plot_start_date <- "2020/3/1"
 plot_end_date <-
   format(Sys.Date(), "%Y/%m/%d") #gets reset in newday function
@@ -183,7 +183,7 @@ onetime <- function(version = 1.0) {
         "https://docs.google.com/uc?id=15pWPcFsrx-MhzXdzqFtVOGhr2swooRvE&export=download"
       )
   }
-  # don't use this anywhere
+  # don"t use this anywhere
   #steve_usa <<- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSrt-fhmYSJ4BUiombXneAsK9BRLyRxwqxxu47pkpiFP6ZgRrXwm4V7frh_rtwPqQAIrCm4RrT8TFkM/pub?gid=931635221&single=true&output=csv")
 
   # info on wa counties
@@ -217,7 +217,7 @@ newday <- function(version = 3.0) {
   # make long
   global_confirmed_t <<- pivot_longer(
     global_confirmed,
-    cols = starts_with('X'),
+    cols = starts_with("X"),
     names_to = "dates",
     values_to = "cases",
     values_drop_na = FALSE
@@ -234,8 +234,8 @@ newday <- function(version = 3.0) {
 
   # remove soem junk
   uc[c(
-    'UID',
-    'iso2',
+    "UID",
+    "iso2",
     "iso3",
     "code3",
     "FIPS",
@@ -247,7 +247,7 @@ newday <- function(version = 3.0) {
   usa_confirmed_t <<-
     pivot_longer(
       uc,
-      cols = starts_with('X'),
+      cols = starts_with("X"),
       names_to = "dates",
       values_to = "cases",
       values_drop_na = FALSE
@@ -352,7 +352,7 @@ get_pop <- function(state = NULL,
   }
 }
 
-# returns population in 100,000's
+# returns population in 100,000"s
 get_pop_uscensus <- function(state, county = "Total") {
   #  if ( state == "District Of Columbia" ) {
   #    state <- "District of Columbia"
@@ -386,7 +386,7 @@ get_pop_uscensus <- function(state, county = "Total") {
   }
 
   if (nrow(row) != 1) {
-    print(paste("FAIL: can't get pop for", county, state))
+    print(paste("FAIL: can"t get pop for", county, state))
     return(0)
   }
   pop <- row$POPESTIMATE2019
@@ -582,7 +582,7 @@ make_plot_base <- function(df,
       main = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
       ylab = ylab_cases_hundy_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "purple",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -607,7 +607,7 @@ make_plot_base <- function(df,
       main = paste(loc_txt, cumulative_c19_cases_txt),
       ylab = ylab_cases_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "purple",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -634,7 +634,7 @@ make_plot_base <- function(df,
       ylab = ylab_daily_cases_txt,
       ylim = c(0, maxy),
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "mediumpurple1",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -756,8 +756,8 @@ make_plot_gg <- function(df,
         size = 0.3,
         na.rm = FALSE
       ) +
-      scale_color_manual(values = c('14 Day Average / Sum' = 'red',
-                                    'Daily' = 'mediumpurple1')) +
+      scale_color_manual(values = c("14 Day Average / Sum" = "red",
+                                    "Daily" = "mediumpurple1")) +
       labs(
         title = paste(loc_txt, main_daily_cases_hundy_txt),
         subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y"))
@@ -843,8 +843,8 @@ multi_make_plot <- function(df,
                             daily_cases = FALSE,
                             file_base = NULL) {
   p <- ggplot(data = df, aes(dates)) +
-    scale_color_manual(values = c('14 Day Average' = 'red',
-                                  'Daily' = 'mediumpurple1')) +
+    scale_color_manual(values = c("14 Day Average" = "red",
+                                  "Daily" = "mediumpurple1")) +
     #   ylim(0,max(df$daily_cases)) +
     labs(
       title = paste(loc_txt, daily_c19_cases_txt),
@@ -915,7 +915,7 @@ build_cols <- function(df, pop) {
       c(0, diff(x))
   )
   df$daily_cases_per_hundy <- df$daily_cases / pop
-  #make na's zero (first daily starts as an NA)
+  #make na"s zero (first daily starts as an NA)
   #  df$daily_cases[is.na(df$daily_cases)] <- 0
 
   # rolling averages
@@ -1110,7 +1110,7 @@ make_redblue_plot <- function(df,
       main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt, hundy_txt),
       ylab = ylab_cases_hundy_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "red",
       ylim = c(0, max_y_cases_per_hundy),
       xlim = as.Date(c(plot_start_date, plot_end_date))
@@ -1138,7 +1138,7 @@ make_redblue_plot <- function(df,
       main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt),
       ylab = ylab_cases_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "red",
       ylim = c(0, max_y),
       xlim = as.Date(c(plot_start_date, plot_end_date))
@@ -1193,20 +1193,20 @@ aggregate_dfs <- function(in_df, new_df, version = 1.0) {
     }
     else {
       #        print(in_df[(r-6):r, "daily_cases"])
-      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left'))
-      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[0])
+      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left"))
+      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left")[0])
       in_df[r, "daily_cases_avrg7d"] <-
         zoo::rollmean(in_df[(r - 6):r, "daily_cases"],
                       k = 7,
                       fill = NA,
-                      align = 'left')[1]
+                      align = "left")[1]
       in_df[r, "daily_cases_per_hundy_avrg7d"] <-
         in_df[r, "daily_cases_avrg7d"] / in_df[r, "pop"]
       in_df[r, "daily_cases_sum7d"] <-
         zoo::rollsum(in_df[(r - 6):r, "daily_cases"],
                      k = 7,
                      fill = NA,
-                     align = 'left')[1]
+                     align = "left")[1]
       in_df[r, "daily_cases_per_hundy_sum7d"] <-
         in_df[r, "daily_cases_sum7d"] / in_df[r, "pop"]
     }
@@ -1221,14 +1221,14 @@ aggregate_dfs <- function(in_df, new_df, version = 1.0) {
         zoo::rollmean(in_df[(r - 13):r, "daily_cases"],
                       k = 14,
                       fill = NA,
-                      align = 'left')[1]
+                      align = "left")[1]
       in_df[r, "daily_cases_per_hundy_avrg14d"] <-
         in_df[r, "daily_cases_avrg14d"] / in_df[r, "pop"]
       in_df[r, "daily_cases_sum14d"] <-
         zoo::rollsum(in_df[(r - 13):r, "daily_cases"],
                      k = 14,
                      fill = NA,
-                     align = 'left')[1]
+                     align = "left")[1]
       in_df[r, "daily_cases_per_hundy_sum14d"] <-
         in_df[r, "daily_cases_sum14d"] / in_df[r, "pop"]
     }
@@ -1255,7 +1255,7 @@ aggregate_dfs <- function(in_df, new_df, version = 1.0) {
         in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- 0
       }
       else {
-        #        in_df[r, "red_daily_cases_avrg7d"] <- zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align='left')[0]
+        #        in_df[r, "red_daily_cases_avrg7d"] <- zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left")[0]
         #        in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- in_df[r, "red_daily_cases_avrg7d"] / in_df[r, "pop"]
       }
       if (r < 15) {
@@ -1263,7 +1263,7 @@ aggregate_dfs <- function(in_df, new_df, version = 1.0) {
         in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- 0
       }
       else {
-        #        in_df[r, "red_daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align='left')[0]
+        #        in_df[r, "red_daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align="left")[0]
         #        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] / in_df[r, "pop"]
       }
 
@@ -1337,7 +1337,7 @@ get_admin1 <- function(admin1,
   }
   else  {
     country <-
-      admin0  #  ARRRG I don't understand why this is needed!!!!
+      admin0  #  ARRRG I don"t understand why this is needed!!!!
     state_cases_t <- as.data.frame(subset(
       global_confirmed_t,
       grepl(country,
@@ -1448,7 +1448,7 @@ build_all_states <- function(combined = TRUE,
       }
     }
 
-    # really no point if there isn't anyone there
+    # really no point if there isn"t anyone there
     if (new_df[1, ]$pop == 0) {
       next
     }
@@ -1503,7 +1503,7 @@ build_all_states <- function(combined = TRUE,
           ylab = ylab_daily_cases_hundy_txt,
           ylim = c(0, maxy),
           xlab = "Dates",
-          type = 'l',
+          type = "l",
           col = "black",
           xlim = as.Date(c(plot_start_date, plot_end_date))
         )
@@ -1531,7 +1531,7 @@ build_all_states <- function(combined = TRUE,
                         colour = s_txt)) +
           geom_line(aes(y = wa_daily_cases_per_hundy_avrg14d,
                         colour = wa_s_txt)) +
-          scale_color_manual(values = c('black', 'darkgreen')) +
+          scale_color_manual(values = c("black", "darkgreen")) +
           ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
           labs(
             title = "Daily Cases per 100,000, 14day Average",
@@ -1628,7 +1628,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     main = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
     ylab = ylab_cases_hundy_txt,
     xlab = "Dates",
-    type = 'l',
+    type = "l",
     col = "gold",
     xlim = as.Date(c(plot_start_date, plot_end_date))
   )
@@ -1671,7 +1671,7 @@ wa_east_west <- function(plot_casesned = FALSE,
   p <- ggplot(data = ew_df, aes(dates)) +
     geom_line(aes(y = west, colour = west_txt)) +
     geom_line(aes(y = east, colour = east_txt)) +
-    scale_color_manual(values = c('gold', 'green')) +
+    scale_color_manual(values = c("gold", "green")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
       subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
@@ -1774,11 +1774,11 @@ prep_wide_data <- function() {
 
   # county data
   # before we add any columns get the last date column
-  # then subtract one for the prior day since 'today' might not be fully reported.
+  # then subtract one for the prior day since "today" might not be fully reported.
   latest <- dim(us_counties_wide)[2] - 1
   us_counties_wide <- merge(us_counties_wide,
                             uid_iso_fips_lookup[, c("Population", "Combined_Key")],
-                            by = 'Combined_Key',
+                            by = "Combined_Key",
                             all.x = TRUE)
 
   us_counties_wide <- summarize_wide_data(us_counties_wide, latest)
@@ -1798,7 +1798,7 @@ prep_wide_data <- function() {
     filter(uid_iso_fips_lookup, Admin2 == "" & Country_Region == "US")
   us_states_wide <- merge(us_states_wide,
                           uid_iso_fips_lookup_states[, c("Population", "Province_State")],
-                          by = 'Province_State')
+                          by = "Province_State")
 
   us_states_wide <<- summarize_wide_data(us_states_wide, latest)
 }
@@ -1821,7 +1821,7 @@ make_a_map_from_base <- function(df,
                                  caption = NULL,
                                  filename = NULL) {
   # prepare to drop the axes and ticks but leave the guides and legends
-  # We can't just throw down a theme_nothing()!
+  # We can"t just throw down a theme_nothing()!
   ditch_the_axes <- theme(
     axis.text = element_blank(),
     axis.line = element_blank(),
@@ -2123,7 +2123,7 @@ prod <- function(version = 1.0) {
   che_cases <- get_admin2("Washington", "Chelan", version = version)
   doug_cases <-
     get_admin2("Washington", "Douglas", version = version)
-  lane_cases <- get_admin2("Oregon", "Lane", version = version)
+  # lane_cases <- get_admin2("Oregon", "Lane", version = version)
   sji_cases <-
     get_admin2("Washington", "San Juan", version = version)
   jeff_cases <-
@@ -2258,23 +2258,22 @@ prod <- function(version = 1.0) {
 
   if (USE_GGPLOT) {
     linetypes <- c(
-      'wa' = 'solid',
-      'mt' =  'solid',
-      'ic' = 'solid',
-      'kc' = 'solid',
-      'yak' = 'solid',
-      'all' = "solid",
-      'mad' = 'solid',
-      'sji' = "solid",
-      'jeff' = "solid",
-      'kit' = 'solid',
-      'usa' = 'dashed',
-      'b_co' = "solid",
-
-      'b_ci' = "solid"
+      "wa" = "solid",
+      "mt" =  "solid",
+      "ic" = "solid",
+      "kc" = "solid",
+      "yak" = "solid",
+      "all" = "solid",
+      "mad" = "solid",
+      "sji" = "solid",
+      "jeff" = "solid",
+      "kit" = "solid",
+      "usa" = "dashed",
+      "b_co" = "solid",
+      "b_ci" = "solid"
     )
 
-    #   linetypes <- c('solid', 'solid', 'solid', 'solid', 'solid', "solid", 'solid', "solid", "solid", 'solid', 'dashed', "solid", "solid")
+    #   linetypes <- c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")
     temp_df <- data.frame(
       dates = wa_cases$dates,
       wa = wa_cases$cases_per_hundy,
@@ -2291,25 +2290,25 @@ prod <- function(version = 1.0) {
       b_ci = b_ci_cases$cases_per_hundy,
       usa = usa_cases$cases_per_hundy
     )
-    p <- ggplot(data = temp_df, aes(dates, linetypes = 'linetypes')) +
-      geom_line(aes(y = ic, colour = ic_txt), linetype = 'solid') +
-      geom_line(aes(y = kc, colour = kc_txt), linetype = 'solid') +
-      geom_line(aes(y = wa, colour = wa_s_txt), linetype = 'solid') +
-      geom_line(aes(y = mt, colour = mt_s_txt), linetype = 'solid') +
-      geom_line(aes(y = b_co, colour = b_co_txt), linetype = 'solid') +
-      geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = 'solid') +
-      geom_line(aes(y = kit, colour = kit_txt), linetype = 'solid') +
-      geom_line(aes(y = jeff, colour = jeff_txt), linetype = 'solid') +
-      geom_line(aes(y = sji, colour = sji_txt), linetype = 'solid') +
-      geom_line(aes(y = yak, colour = yak_txt), linetype = 'solid') +
-      geom_line(aes(y = all, colour = all_txt), linetype = 'solid') +
-      geom_line(aes(y = mad, colour = mad_txt), linetype = 'solid') +
-      geom_line(aes(y = usa, colour = usa_txt), linetype = 'dashed') +
+    p <- ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
+      geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
+      geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
+      geom_line(aes(y = wa, colour = wa_s_txt), linetype = "solid") +
+      geom_line(aes(y = mt, colour = mt_s_txt), linetype = "solid") +
+      geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
+      geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
+      geom_line(aes(y = kit, colour = kit_txt), linetype = "solid") +
+      geom_line(aes(y = jeff, colour = jeff_txt), linetype = "solid") +
+      geom_line(aes(y = sji, colour = sji_txt), linetype = "solid") +
+      geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
+      geom_line(aes(y = all, colour = all_txt), linetype = "solid") +
+      geom_line(aes(y = mad, colour = mad_txt), linetype = "solid") +
+      geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
       scale_color_manual(
         values = c(
-          'black',
-          'darkred',
-          'red',
+          "black",
+          "darkred",
+          "red",
           "blue",
           "pink",
           "green",
@@ -2322,7 +2321,7 @@ prod <- function(version = 1.0) {
           "yellow"
         )
       ) +
-      #    scale_linetype_manual( values = c('solid', 'solid', 'solid', 'solid', 'solid', "solid", 'solid', "solid", "solid", 'solid', 'dashed', "solid", "solid")) +
+      #    scale_linetype_manual( values = c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")) +
       #      scale_linetype_manual( values = linetypes ) +
       ylim(0, max(b_ci_cases$cases_per_hundy, na.rm = TRUE)) +
       #      labs(title = main_cases_hundy_txt,
@@ -2357,7 +2356,7 @@ prod <- function(version = 1.0) {
       main = paste(cumulative_c19_cases_txt, hundy_txt),
       ylab = ylab_cases_hundy_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "green",
       lwd = 2,
       xlim = as.Date(c(plot_start_date, plot_end_date)),
@@ -2452,7 +2451,7 @@ prod <- function(version = 1.0) {
           jeff_cases$cases_per_hundy,
           col = "black",
           lty = 1)
-    # re-add king to make sure it's on 'top'
+    # re-add king to make sure it"s on "top"
     lines(
       kc_cases$dates,
       kc_cases$cases_per_hundy,
@@ -2485,7 +2484,7 @@ prod <- function(version = 1.0) {
   p <- ggplot(data = apple_df, aes(dates)) +
     geom_line(aes(y = kc, colour = kc_txt)) +
     geom_line(aes(y = wh, colour = wh_txt)) +
-    scale_color_manual(values = c('purple', 'darkred')) +
+    scale_color_manual(values = c("purple", "darkred")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
       subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
@@ -2532,7 +2531,7 @@ prod <- function(version = 1.0) {
                     colour = wh_txt)) +
       geom_line(aes(y = kc_cases.cases_per_hundy,
                     colour = kc_txt)) +
-      scale_color_manual(values = c('purple', 'darkred')) +
+      scale_color_manual(values = c("purple", "darkred")) +
       ylim(0, max(apple_cup$wh_cases.cases_per_hundy)) +
       labs(
         title = paste(cumulative_c19_cases_txt, hundy_txt),
@@ -2566,7 +2565,7 @@ prod <- function(version = 1.0) {
       main = paste(cumulative_c19_cases_txt, hundy_txt),
       ylab = ylab_cases_hundy_txt,
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "darkred",
       xlim = as.Date(c(plot_start_date, plot_end_date)),
       ylim = c(0, max(wh_cases$cases_per_hundy))
@@ -2638,7 +2637,7 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = kc, colour = kc_txt)) +
       geom_line(aes(y = ic, colour = ic_txt)) +
       geom_line(aes(y = b_co, colour = b_co_txt)) +
-      scale_color_manual(values = c('red', 'blue', 'green')) +
+      scale_color_manual(values = c("red", "blue", "green")) +
       ylim(0, maxy) +
       labs(
         title = main_daily_cases_hundy_14d_avrg_txt,
@@ -2673,7 +2672,7 @@ prod <- function(version = 1.0) {
       ylab = ylab_daily_cases_hundy_txt,
       ylim = c(0, maxy),
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "green",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -2707,7 +2706,7 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = wa, colour = wa_s_txt)) +
       geom_line(aes(y = ic, colour = ic_txt)) +
       geom_line(aes(y = kc, colour = kc_txt)) +
-      scale_color_manual(values = c('blue', 'green', 'darkgreen')) +
+      scale_color_manual(values = c("blue", "green", "darkgreen")) +
       ylim(0, maxy) +
       labs(
         title = main_daily_cases_hundy_14d_avrg_txt,
@@ -2742,7 +2741,7 @@ prod <- function(version = 1.0) {
       ylab = ylab_daily_cases_hundy_txt,
       ylim = c(0, maxy),
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "green",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -2794,7 +2793,7 @@ prod <- function(version = 1.0) {
                  "dashed") +
     geom_hline(yintercept = 200, linetype = "dashed") +
     # geom_hline(yintercept = c(200, 150)) +
-    scale_color_manual(values = c('blue', 'green', 'yellow', 'purple', 'pink')) +
+    scale_color_manual(values = c("blue", "green", "yellow", "purple", "pink")) +
     ylim(0, maxy) +
     scale_x_date(
       date_breaks = "3 week",
@@ -2860,8 +2859,8 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = mi, colour = mi_s_txt)) +
       #      geom_line(aes(y = india, colour=india_txt)) +
       geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
-      scale_color_manual(values = c('black', 'orange', 'lightgreen', "red", "darkgreen")) +
-      scale_linetype_manual(values = c('solid', 'solid', 'solid', 'dashed', 'solid')) +
+      scale_color_manual(values = c("black", "orange", "lightgreen", "red", "darkgreen")) +
+      scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
       labs(
         title = main_daily_cases_hundy_14d_avrg_txt,
         subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
@@ -2901,7 +2900,7 @@ prod <- function(version = 1.0) {
       ylab = ylab_daily_cases_hundy_txt,
       ylim = c(0, maxy),
       xlab = "Dates",
-      type = 'l',
+      type = "l",
       col = "darkgreen",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
@@ -2962,7 +2961,7 @@ prod <- function(version = 1.0) {
       geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
       geom_line(aes(y = id, colour = id_s_txt)) +
       geom_line(aes(y = ca, colour = ca_s_txt)) +
-      scale_color_manual(values = c('lightblue', 'pink', 'brown', 'lightgreen', "darkgreen")) +
+      scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen")) +
       ylim(0, maxy) +
       labs(
         title = main_daily_cases_hundy_14d_avrg_txt,
