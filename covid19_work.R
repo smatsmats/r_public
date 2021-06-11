@@ -1139,6 +1139,7 @@ mk_state_string <- function(state) {
 build_all_states <- function(combined = TRUE,
                              keep_dfs = FALSE,
                              plot_wa_and = FALSE,
+                             plot_daily_cases = FALSE,
                              plot_state_cases_per_hundy = FALSE,
                              file_base = NULL,
                              version = 3.0,
@@ -1184,8 +1185,19 @@ build_all_states <- function(combined = TRUE,
       next
     }
 
+    file_base <- str_replace_all(tolower(state), " ", "_")
+    if ( plot_daily_cases ) {
+      ret <- make_plot(df = new_df, 
+                       loc_txt = state, 
+                       daily_cases = TRUE, 
+                       file_base = file_base)
+      if ( push2amazon && ! is.null(ret) ) {
+        filename <- paste(file_base, "daily_cases.jpg", sep="_")
+        file_to_bucket(filename)
+      }
+    }
+
     if ( plot_state_cases_per_hundy ) {
-      file_base <- str_replace_all(tolower(state), " ", "_")
       ret <- make_plot(new_df,
                        loc_txt = state,
                        cases_per_hundy = TRUE,
@@ -1490,6 +1502,7 @@ make_a_map_from_base <- function(df, var, base,
     axis.title = element_blank()
   )
 
+#  df4export <- 
   meanv <- mean(df[,var], na.rm = TRUE)
   mean_txt <- paste("Mean =", round(meanv, digits = 1))
   med <- median(meanv <- mean(df[,var], na.rm = TRUE))
@@ -1539,7 +1552,7 @@ make_a_map_from_base <- function(df, var, base,
                             low = "white",
                             high = "red",
                             space = "Lab",
-                            na.value = "white",
+                            na.value = "pink",
                             name = mean_txt,
                             trans = "log10")
     }
@@ -1676,6 +1689,7 @@ prod <- function(version = 1.0) {
                                   keep_dfs = FALSE,
                                   plot_state_cases_per_hundy = TRUE,
                                   plot_wa_and = TRUE,
+                                  plot_daily_cases = TRUE,
                                   push2amazon = TRUE,
                                   version = version)
     make_plot(usa_cases, loc_txt = "USA",
@@ -1991,8 +2005,6 @@ prod <- function(version = 1.0) {
 
   # 14 day moving plots
   make_plot(loc_txt = ic_txt, df = ic_cases, daily_cases = TRUE, file_base = "island_wa")
- # make_plot(loc_txt = ic_txt, df = ic_cases, daily_cases = TRUE)
-  # selby
   file_to_bucket(file = "island_wa_daily_cases.jpg")
   make_plot(loc_txt = kc_txt, df = kc_cases, daily_cases = TRUE, file_base = "king_wa")
   file_to_bucket(file = "king_wa_daily_cases.jpg")
