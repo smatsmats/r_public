@@ -5,9 +5,9 @@
 #
 #for 
 
+# no data for 'american_samoa',
 l = ('alabama',
 'alaska',
-'american_samoa',
 'arizona',
 'arkansas',
 'california',
