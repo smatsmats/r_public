@@ -1809,6 +1809,7 @@ if (live_mode) {
 }
 
 make_a_map_from_base <- function(df,
+                                 key = NULL,
                                  var,
                                  base,
                                  title,
@@ -1820,7 +1821,7 @@ make_a_map_from_base <- function(df,
                                  border2_color = NULL,
                                  border2_df = NULL,
                                  caption = NULL,
-                                 filename = NULL) {
+                                 filebase = NULL) {
   # prepare to drop the axes and ticks but leave the guides and legends
   # We can't just throw down a theme_nothing()!
   ditch_the_axes <- theme(
@@ -1832,10 +1833,20 @@ make_a_map_from_base <- function(df,
     axis.title = element_blank()
   )
 
-  #  df4export <-
+  # if we get a key then can make a df with only the key and values
+  # to make available for on the the webpage
+  if (!is.null(key)) {
+    df4export <- unique(df[, c(key, var)])
+    if (!is.null(filebase)) {
+      filename <- paste(filebase, "csv", sep = ".")
+      write.csv(df4export, filename)
+      file_to_bucket(filename)
+    }
+  }
+
   meanv <- mean(df[, var], na.rm = TRUE)
   mean_txt <- paste("Mean =", round(meanv, digits = 1))
-  med <- median(meanv <- mean(df[, var], na.rm = TRUE))
+  med <- median(df[, var], na.rm = TRUE)
 
   iqr <- IQR(df[, var], na.rm = TRUE)
   if (is.null(lowpoint)) {
@@ -1848,7 +1859,8 @@ make_a_map_from_base <- function(df,
     print(paste("iqr", iqr, "med", med, "range", data_range))
   }
 
-  if (!is.null(filename)) {
+  if (!is.null(filebase)) {
+    filename <- paste(filebase, "jpg", sep=".")
     jpeg(filename = filename,
          width = plot_file_width,
          height = plot_file_height)
@@ -1945,8 +1957,11 @@ make_maps <- function() {
   states$Province_State = str_to_title(states$region)
   states_merged <-
     inner_join(states, us_states_wide, by = "Province_State")
+  # use key = "Province_State"
+ 
   vax_states_merged <-
     inner_join(states, vax_us_wide, by = "Province_State")
+  # use key = "Province_State"
 
   wa_df <- subset(states, region == "washington")
   wa_base <-
@@ -1968,12 +1983,15 @@ make_maps <- function() {
 
   counties_merged <-
     inner_join(counties, us_counties_wide, by = "combinedkeylc")
+  # use key = Combined_Key.x
 
   wa_counties_merged <-
     subset(counties_merged, region == "washington")
+  # use key = Combined_Key.x
 
   make_a_map_from_base(
     df = wa_counties_merged,
+    key = "Combined_Key.x",
     var = "avrg14_per_hundy",
     base = wa_base,
     lowpoint = 0,
@@ -1982,18 +2000,19 @@ make_maps <- function() {
     border2_df = wa_df,
     title = paste("Washington",
                   main_daily_cases_hundy_14d_avrg_txt),
-    filename = "map_wa_14avrg.jpg"
+    filebase = "map_wa_14avrg"
   )
   make_a_map_from_base(
     df = wa_counties_merged,
     var = "trend",
+    key = "Combined_Key.x",
     midpoint = 0,
     border1_color = "grey",
     border1_df = wa_counties_merged,
     border2_df = wa_df,
     base = wa_base,
     title = paste("Washington", main_14day_trend_txt),
-    filename = "map_wa_trend.jpg"
+    filebase = "map_wa_trend"
   )
 
 
@@ -2010,36 +2029,39 @@ make_maps <- function() {
   make_a_map_from_base(
     df = states_merged,
     var = "avrg14_per_hundy",
+    key = "Province_State",
     lowpoint = 0,
     base = states_base,
     border1_color = "grey",
     border1_df = states,
     border2_df = usa,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
-    filename = "map_usa_14avrg.jpg"
+    filebase = "map_usa_14avrg"
   )
   make_a_map_from_base(
     df = states_merged,
     var = "trend",
+    key = "Province_State",
     midpoint = 0,
     base = states_base,
     border1_color = "grey",
     border1_df = states,
     border2_df = usa,
     title = paste("USA", main_14day_trend_txt, "States"),
-    filename = "map_usa_trend.jpg"
+    filebase = "map_usa_trend"
   )
 
   make_a_map_from_base(
     df = vax_states_merged,
     var = "vax_pct",
+    key = "Province_State",
     lowpoint = 0,
     base = states_base,
     border1_color = "grey",
     border1_df = states,
     border2_df = usa,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
-    filename = "vax1.jpg"
+    filebase = "vax1"
   )
 
   # us county maps
@@ -2056,6 +2078,7 @@ make_maps <- function() {
   make_a_map_from_base(
     df = counties_merged,
     var = "avrg14_per_hundy",
+    key = "Combined_Key.x",
     lowpoint = 0,
     base = counties_base,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
@@ -2064,11 +2087,12 @@ make_maps <- function() {
     border1_df = states,
     border2_df = usa,
     caption = "(black or grey represends missing data)",
-    filename = "map_usa_14avrg_c.jpg"
+    filebase = "map_usa_14avrg_c"
   )
   make_a_map_from_base(
     df = counties_merged,
     var = "trend",
+    key = "Combined_Key.x",
     midpoint = 0,
     base = counties_base,
     title = paste("USA", main_14day_trend_txt, "Counties"),
@@ -2076,10 +2100,14 @@ make_maps <- function() {
     border1_df = states,
     border2_df = usa,
     caption = "(black or grey represends missing data)",
-    filename = "map_usa_trend_c.jpg"
+    filebase = "map_usa_trend_c"
   )
 
   return()
+}
+
+if (live_mode) {
+  make_maps()
 }
 
 prod <- function(version = 1.0) {
