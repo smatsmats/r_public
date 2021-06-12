@@ -807,7 +807,7 @@ make_plot <- function(df,
                       daily_cases = FALSE,
                       file_base = NULL) {
   if (USE_GGPLOT) {
-    return (
+    return(
       make_plot_gg(
         df = df,
         loc_txt = loc_txt,
@@ -820,7 +820,7 @@ make_plot <- function(df,
     )
   }
   else {
-    return (
+    return(
       make_plot_base(
         df = df,
         loc_txt = loc_txt,
@@ -1860,7 +1860,7 @@ make_a_map_from_base <- function(df,
   }
 
   if (!is.null(filebase)) {
-    filename <- paste(filebase, "jpg", sep=".")
+    filename <- paste(filebase, "jpg", sep = ".")
     jpeg(filename = filename,
          width = plot_file_width,
          height = plot_file_height)
@@ -3105,5 +3105,6 @@ prod(version = version)
 
 prep_wide_data()
 ret <- make_maps()
+
 
 warnings()
