@@ -89,6 +89,11 @@ for s in states:
     print("      <A HREF=\"%s%s.jpg\">Compared to WA</A>" %
           (url_base, s))
     print("    </TD>")
+    print("    <TD>")
+    print("      <A HREF=\"%s%s.csv\">CSV</A>" %
+          (url_base, s))
+    print("    </TD>")
+
 
     print("  </TR>")
 
