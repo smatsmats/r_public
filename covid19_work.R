@@ -1396,12 +1396,11 @@ make_state_string <- function(state) {
 
 build_all_states <- function(combined = TRUE,
                              keep_dfs = FALSE,
+                             write_dfs = FALSE,
                              plot_wa_and = FALSE,
                              plot_daily_cases = FALSE,
                              plot_state_cases_per_hundy = FALSE,
-                             file_base = NULL,
-                             version = 3.0,
-                             push2amazon = FALSE) {
+                             version = 3.0) {
   if (exists("usa_df")) {
     remove(usa_df, envir = .GlobalEnv)
   }
@@ -1425,6 +1424,13 @@ build_all_states <- function(combined = TRUE,
       next
     }
 
+    file_base <- str_replace_all(tolower(state), " ", "_")
+    if (write_dfs) {
+      filename <- paste(file_base, "csv", sep = ".")
+      write.csv(new_df, filename)
+      file_to_bucket(filename)
+    }
+    
     if (keep_dfs) {
       st_string <- make_state_string(state)
       new_df_name <- paste(st_string, "_df", sep = "")
@@ -1455,7 +1461,6 @@ build_all_states <- function(combined = TRUE,
       next
     }
 
-    file_base <- str_replace_all(tolower(state), " ", "_")
     if (plot_daily_cases) {
       ret <- make_plot(
         df = new_df,
@@ -1463,7 +1468,7 @@ build_all_states <- function(combined = TRUE,
         daily_cases = TRUE,
         file_base = file_base
       )
-      if (push2amazon && !is.null(ret)) {
+      if (!is.null(ret)) {
         filename <- paste(file_base, "daily_cases.jpg", sep = "_")
         file_to_bucket(filename)
       }
@@ -1476,7 +1481,7 @@ build_all_states <- function(combined = TRUE,
         cases_per_hundy = TRUE,
         file_base = file_base
       )
-      if (push2amazon && !is.null(ret)) {
+      if (!is.null(ret)) {
         filename <- paste(file_base, "cases_per_hundy.jpg", sep = "_")
         file_to_bucket(filename)
       }
@@ -1560,9 +1565,7 @@ build_all_states <- function(combined = TRUE,
         print(p)
       }
       dev.off()
-      if (push2amazon) {
-        file_to_bucket(filename)
-      }
+      file_to_bucket(filename)
     }
 
   } # for all states
@@ -1711,25 +1714,6 @@ if (live_mode) {
   wa_east_west(file_base = "waeastwest")
 }
 
-#this is really dumb, really not different than today - 14 days ago.
-make_14_sum <- function(df, coln) {
-  df$make_14_sum <- (df[, coln] - df[, (coln - 1)]) +
-    (df[, (coln - 1)] - df[, (coln - 2)]) +
-    (df[, (coln - 2)] - df[, (coln - 3)]) +
-    (df[, (coln - 3)] - df[, (coln - 4)]) +
-    (df[, (coln - 4)] - df[, (coln - 5)]) +
-    (df[, (coln - 5)] - df[, (coln - 6)]) +
-    (df[, (coln - 6)] - df[, (coln - 7)]) +
-    (df[, (coln - 7)] - df[, (coln - 8)]) +
-    (df[, (coln - 8)] - df[, (coln - 9)]) +
-    (df[, (coln - 9)] - df[, (coln - 10)]) +
-    (df[, (coln - 10)] - df[, (coln - 11)]) +
-    (df[, (coln - 11)] - df[, (coln - 12)]) +
-    (df[, (coln - 12)] - df[, (coln - 13)]) +
-    (df[, (coln - 13)] - df[, (coln - 14)])
-  return(df)
-}
-
 summarize_vax_wide_data <- function(df, latest_col) {
   df$latest <- df[, latest_col]
   df$vax_pct <- df$latest / df$Population
@@ -1740,18 +1724,20 @@ summarize_vax_wide_data <- function(df, latest_col) {
 }
 
 summarize_wide_data <- function(df, latest_col) {
-  df$latest <- df[, latest_col]
-  df <- make_14_sum(df, latest_col)
-  df$sum14 <- df$make_14_sum
 
-  df$avrg14 <- df$sum14 / 14
+  df$latest <- df[, latest_col]
+  # difference over 14days
+  df$diff14 <- df$latest - df[, (latest_col - 14)]
+
+  df$avrg14 <- df$diff14 / 14
   df$latest_per_hundy <- df$latest / df$Population * 100000
   df$avrg14_per_hundy <- df$avrg14 / df$Population * 100000
 
   df$week2ago <- df[, (latest_col - 14)]
-  df <- make_14_sum(df, (latest_col - 14))
-  df$week2ago_sum14 <- df$make_14_sum
-  df$week2ago_avrg14 <- df$week2ago_sum14 / 14
+
+  # change over 14days (two weeks ago)
+  df$week2ago_diff14 <- df[, (latest_col - 14)] - df[, (latest_col - 28)]
+  df$week2ago_avrg14 <- df$week2ago_diff14 / 14
   df$week2ago_per_hundy <- df$week2ago / df$Population * 100000
   df$week2ago_avrg14_per_hundy <-
     df$week2ago_avrg14 / df$Population * 100000
@@ -2115,10 +2101,10 @@ prod <- function(version = 1.0) {
     usa_cases <- build_all_states(
       combined = TRUE,
       keep_dfs = TRUE,
+      write_dfs = TRUE,
       plot_state_cases_per_hundy = TRUE,
       plot_wa_and = TRUE,
       plot_daily_cases = TRUE,
-      push2amazon = TRUE,
       version = version
     )
     make_plot(
