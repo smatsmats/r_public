@@ -1513,8 +1513,8 @@ build_all_states <- function(combined = TRUE,
           col = "black",
           xlim = as.Date(c(plot_start_date, plot_end_date))
         )
-        lines(wa_cases$dates,
-              wa_cases$daily_cases_per_hundy_avrg14d,
+        lines(washington_df$dates,
+              washington_df$daily_cases_per_hundy_avrg14d,
               col = "darkgreen")
         legend(
           "topleft",
@@ -2145,12 +2145,12 @@ prod <- function(version = 1.0) {
     get_admin2("Washington", "Jefferson", version = version)
   # india <- get_admin0(country = "india")
 
-  wa_cases <- get_admin1(admin1 = "Washington", version = version)
-  wa_s_txt <-
-    paste("Washington State (pop=",
-          pop_format(wa_cases$pop[1]),
-          ")",
-          sep = "")
+#  wa_cases <- get_admin1(admin1 = "Washington", version = version)
+#  wa_s_txt <-
+#    paste("Washington State (pop=",
+#          pop_format(wa_cases$pop[1]),
+#          ")",
+#          sep = "")
   ca_bc_cases <-
     get_admin1(admin0 = "Canada", admin1 = "British Columbia")
   ca_bc_txt <-
@@ -2160,17 +2160,6 @@ prod <- function(version = 1.0) {
           sep = "")
   ca_on_cases <- get_admin1(admin0 = "Canada", admin1 = "Ontario")
 
-  md_cases <- get_admin1("Maryland", version = version)
-  # md_s_txt <-
-    paste("Maryland State (pop=", pop_format(md_cases$pop[1]), ")", sep = "")
-
-  #  pa_cases <- get_admin1("Pennsylvania", FALSE, FALSE, FALSE, ",000", version=version)
-  #  pa_s_txt <- paste("Pennsylvanit State (pop=", pop_format(pa_cases$pop[1]), sep="")
-  #  va_cases <- get_admin1("Virginia", FALSE, FALSE, FALSE, ",000", version=version)
-  #  va_s_txt <- paste("Virginia Commonwealth (pop=", pop_format(va_cases$pop[1]), sep="")
-  or_cases <- get_admin1("Oregon", version = version)
-  or_s_txt <-
-    paste("Oregon State (pop=", pop_format(or_cases$pop[1]), ")", sep = "")
   mt_cases <- get_admin1("Montana",  version = version)
   mt_s_txt <-
     paste("Montana State (pop=", pop_format(mt_cases$pop[1]), ")", sep = "")
@@ -2308,7 +2297,7 @@ prod <- function(version = 1.0) {
     p <- ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
       geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
       geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
-      geom_line(aes(y = wa, colour = wa_s_txt), linetype = "solid") +
+      geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
       geom_line(aes(y = mt, colour = mt_s_txt), linetype = "solid") +
       geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
       geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
@@ -2718,7 +2707,7 @@ prod <- function(version = 1.0) {
 
   if (USE_GGPLOT) {
     p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = wa, colour = wa_s_txt)) +
+      geom_line(aes(y = wa, colour = washington_s_txt)) +
       geom_line(aes(y = ic, colour = ic_txt)) +
       geom_line(aes(y = kc, colour = kc_txt)) +
       scale_color_manual(values = c("blue", "green", "darkgreen")) +
@@ -2768,7 +2757,7 @@ prod <- function(version = 1.0) {
           col = "darkgreen")
     legend(
       "topleft",
-      legend = c(ic_txt, kc_txt, wa_s_txt),
+      legend = c(ic_txt, kc_txt, washington_s_txt),
       col = c("green", "blue", "darkgreen"),
       lty = 1
     )
@@ -2875,7 +2864,7 @@ prod <- function(version = 1.0) {
     )
     p <- ggplot(data = temp_df, aes(dates)) +
       geom_line(aes(y = or, colour = or_s_txt)) +
-      geom_line(aes(y = wa, colour = wa_s_txt)) +
+      geom_line(aes(y = wa, colour = washington_s_txt)) +
       geom_line(aes(y = mt, colour = mt_s_txt)) +
       geom_line(aes(y = mi, colour = mi_s_txt)) +
       #      geom_line(aes(y = india, colour=india_txt)) +
@@ -2925,12 +2914,10 @@ prod <- function(version = 1.0) {
       col = "darkgreen",
       xlim = as.Date(c(plot_start_date, plot_end_date))
     )
-    #  lines(md_cases$dates, md_cases$daily_cases_per_hundy_avrg14d, col="red")
-    #  lines(va_cases$dates, va_cases$daily_cases_per_hundy_avrg14d, col="gold")
-    lines(or_cases$dates,
-          or_cases$daily_cases_per_hundy_avrg14d,
+
+    lines(oregon_df$dates,
+          oregon_df$daily_cases_per_hundy_avrg14d,
           col = "lightgreen")
-    #  lines(pa_cases$dates, pa_cases$daily_cases_per_hundy_avrg14d, col="darkblue")
     lines(mt_cases$dates,
           mt_cases$daily_cases_per_hundy_avrg14d,
           col = "orange")
@@ -2943,8 +2930,8 @@ prod <- function(version = 1.0) {
         "Pennsylvania",
         "Maryland",
         "Virginia",
-        wa_s_txt,
-        or_s_txt,
+        washington_s_txt,
+        oregon_s_txt,
         mt_s_txt,
         ca_s_txt
       ),
@@ -2978,8 +2965,8 @@ prod <- function(version = 1.0) {
 
   if (USE_GGPLOT) {
     p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = or, colour = or_s_txt)) +
-      geom_line(aes(y = wa, colour = wa_s_txt)) +
+      geom_line(aes(y = or, colour = oregon_s_txt)) +
+      geom_line(aes(y = wa, colour = washington_s_txt)) +
       geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
       geom_line(aes(y = id, colour = id_s_txt)) +
       geom_line(aes(y = ca, colour = ca_s_txt)) +
