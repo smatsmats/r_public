@@ -1871,7 +1871,7 @@ make_a_map_from_base <- function(df,
           low = "blue",
           mid = "white",
           high = "red",
-          name = mean_txt,
+          name = paste(mean_txt, "\nCenter at mean"),
           limits = data_range,
           oob = scales::squish
         )
@@ -1883,7 +1883,7 @@ make_a_map_from_base <- function(df,
           low = "blue",
           mid = "white",
           high = "red",
-          name = mean_txt,
+          name = paste(mean_txt, "\nCenter at 0 (no change)"),
           limits = data_range,
           oob = scales::squish
         )
