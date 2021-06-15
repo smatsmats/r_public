@@ -2301,7 +2301,7 @@ prod <- function(version = 1.0) {
       ) +
       #    scale_linetype_manual( values = c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")) +
       #      scale_linetype_manual( values = linetypes ) +
-      ylim(0, max(b_ci_cases$cases_per_hundy, na.rm = TRUE)) +
+      ylim(0, max(usa_cases$cases_per_hundy, na.rm = TRUE)) +
       #      labs(title = main_cases_hundy_txt,
       #           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
       #           x = "Dates",
