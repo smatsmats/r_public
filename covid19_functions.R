@@ -20,34 +20,37 @@ library("mapdata")
 # - don't combine plotting and making df"s
 # - except where it makes sense, i.e. build all states
 #
-# work to do
-# - pull plotting out of build county and build state
 #
 
-# tmp goes in tmp, everthing is tmp
+# tmp goes in tmp, everything is tmp
 setwd("/tmp")
 
-hello <- function() {
-}
-
-USE_JHU_POPS <- TRUE     # pops are populations
+# Some flags
+USE_JHU_POPS <- TRUE     # don't use populations directly from census
 ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
-USE_GGPLOT <- TRUE
+USE_GGPLOT <- TRUE       # versus base graphs
 PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
-KEEP_FILES <- FALSE
+KEEP_FILES <- FALSE      # don't remove files after being pushed
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
   cat("No AWS creds in environment\n")
-  cat("turning off AWS pushes")
+  cat("turning off AWS pushes\n")
   PUSH_TO_AMAZON <- FALSE
+} else {
+  if (Sys.getenv("BUCKET") == "") {
+    cat("Must set environment var BUCKET\n")
+    quit()
+  }
+  else {
+    bucket <- Sys.getenv("BUCKET")
+  }
 }
 
 # constants
-bucket <- "rbucket-matsmats"
-plot_start_date <- "2020/3/1"
+plot_start_date <- "2020/3/1"  # not the earliest case in WA but ...
 plot_end_date <-
   format(Sys.Date(), "%Y/%m/%d") #gets reset in newday function
 cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
@@ -196,6 +199,7 @@ onetime <- function(version = 1.0) {
   #  county_transformations <<- read.csv("/Users/willey/Google\ Drive/data/county_transformations.csv")
   #  wa_counties <<- read.csv("/Users/willey/Google\ Drive/data/wa_counties.csv")
 
+  return(0)
 }
 
 newday <- function(version = 3.0) {
@@ -290,6 +294,8 @@ vax_data <- function() {
 
   write.csv(vax_us_wide, "vax_us_wide.csv")
 
+  return(0)
+  
 }
 
 if (live_mode) {
