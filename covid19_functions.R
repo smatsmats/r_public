@@ -30,7 +30,6 @@ USE_JHU_POPS <- TRUE     # don't use populations directly from census
 ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
 USE_GGPLOT <- TRUE       # versus base graphs
-PUSH_TO_AMAZON <- TRUE
 VERBOSE <- FALSE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
 
@@ -47,6 +46,7 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
   else {
     bucket <- Sys.getenv("BUCKET")
   }
+  PUSH_TO_AMAZON <- TRUE
 }
 
 # constants
@@ -82,7 +82,6 @@ if (length(args) == 0) {
   live_mode = FALSE
 }
 live_mode = FALSE
-version = 3.0
 
 file_to_bucket <- function(file, unlink_after = TRUE) {
   if (PUSH_TO_AMAZON) {
@@ -101,6 +100,7 @@ file_to_bucket <- function(file, unlink_after = TRUE) {
     unlink(file)
   }
 
+  return(0)
 }
 
 # reads in population file date and does some formating
@@ -149,6 +149,7 @@ get_population <- function() {
         "https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true"
       )
     uid_iso_fips_lookup <<- mash_combined_key(uid_iso_fips_lookup)
+    population <- uid_iso_fips_lookup
   }
   return(population)
 }
@@ -161,12 +162,7 @@ state_pop_txt <- function(s, df) {
   return(paste(s, " State (pop=", pop_format(df$pop[1]), ")", sep = ""))
 }
 
-if (live_mode) {
-  population <- get_population()
-  print(pop_format(.8))
-}
-
-onetime <- function(version = 1.0) {
+onetime <- function() {
   # some datasets
   # 2016 presidential election results, by county
   if (ENABLE_RED_BLUE) {
@@ -202,7 +198,7 @@ onetime <- function(version = 1.0) {
   return(0)
 }
 
-newday <- function(version = 3.0) {
+newday <- function() {
   # reset end date
   plot_end_date <<- format(Sys.Date(), "%Y/%m/%d")
 
@@ -272,6 +268,7 @@ newday <- function(version = 3.0) {
     values_from = cases
   )
 
+  return(0)
 }
 
 vax_data <- function() {
@@ -296,11 +293,6 @@ vax_data <- function() {
 
   return(0)
   
-}
-
-if (live_mode) {
-  onetime(version = version)
-  newday(version = version)
 }
 
 # cleans-up some goofy county names - maybe only need this with US Census pops
@@ -892,8 +884,7 @@ multi_make_plot <- function(df,
 
 if (live_mode) {
   ic_cases <- get_admin2("Washington",
-                         county = "Island",
-                         version = 3)
+                         county = "Island")
   make_plot(
     df = ic_cases,
     loc_txt = "bongo",
@@ -1006,8 +997,8 @@ build_cols <- function(df, pop) {
 }
 
 # selects a county
-get_admin2 <- function(state, county, version = 3.0) {
-  print(paste("in get_admin2(", county, "), version is", version))
+get_admin2 <- function(state, county) {
+  cat("in get_admin2(", county, ")")
 
   if (county == "Total") {
     county_cases_t <- as.data.frame(subset(usa_states,
@@ -1031,10 +1022,9 @@ get_admin2 <- function(state, county, version = 3.0) {
 
 if (live_mode) {
   b_ci_cases <-
-    get_admin2("Maryland", "Baltimore City", version = version)
+    get_admin2("Maryland", "Baltimore City")
   make_plot(b_ci_cases, "bongo", "bingo")
   ic_cases <- get_admin2("Washington", "Island")
-  ic_cases <- get_admin2("Washington", "Island", version = 2.0)
 
   make_plot(
     loc_txt = "Washington",
@@ -1053,11 +1043,11 @@ if (live_mode) {
   )
   cc_cases <- get_admin2("Washington", "Columbia")
   ac_cases <- get_admin2("Washington", "Adams")
-  wa_cases <- get_admin2("Washington", "Total", version = 3.0)
+  wa_cases <- get_admin2("Washington", "Total")
 
   gc_cases <- get_admin2("Washington", "Garfield")
   tc_cases <- get_admin2("Louisiana", "Terrebonne")
-  junk_new <- get_admin2("Virginia", "Lunenburg", version = 2.0)
+  junk_new <- get_admin2("Virginia", "Lunenburg")
 
 }
 
@@ -1173,7 +1163,7 @@ make_redblue_plot <- function(df,
 # daily_cases_per_hundy_avrg7   division        division
 # daily_cases_per_hundy_avrg14  division        division
 #
-aggregate_dfs <- function(in_df, new_df, version = 1.0) {
+aggregate_dfs <- function(in_df, new_df) {
   #    print(paste("in aggregate_dfs", in_df[nrow(in_df),"cases"], new_df[nrow(in_df),"cases"]))
   #    print(paste("in aggregate_dfs", in_df[1,"pop"], new_df[1,"pop"]))
 
@@ -1323,14 +1313,11 @@ if (live_mode) {
 
 
 get_admin1 <- function(admin1,
-                       admin0 = "US",
-                       version = 3.0) {
+                       admin0 = "US") {
   cat("in get_admin1, state:",
       admin1,
       "country:",
       admin0,
-      "version:",
-      version,
       "\n")
 
 
@@ -1366,20 +1353,21 @@ get_admin1 <- function(admin1,
 
 
 if (live_mode) {
-  wa_cases <<- get_admin1("Washington", version = 1.0)
+  wa_cases <<- get_admin1("Washington")
   make_plot(wa_cases, "bongo", cases = TRUE)
   dp_cases <<- get_admin1("Diamond Princess")
   ca_bc_cases <<- get_admin1("British Columbia", admin0 = "Canada")
   make_plot(ca_bc_cases, "bongo", daily_cases = TRUE)
-  dc_cases <<- get_admin1("District of Columbia", version = 3.0)
+  dc_cases <<- get_admin1("District of Columbia")
   write.csv(wa_cases, "wa_cases.csv")
   pr_cases <- get_admin1("Puerto Rico")
 }
 
-get_admin0 <- function(country_in, version = 3.0) {
-  print(paste("in get_admin0:", country_in, "version:", version))
+get_admin0 <- function(country_in) {
+  cat("in get_admin0:", country_in)
 
-  # convert into a data frame instead of a tuple.  tuple has big performance impacts down the road
+  # convert into a data frame instead of a tuple.  
+  # tuple has big performance impacts down the road
   country_cases_t <- as.data.frame(subset(
     admin0_t,
     grepl(country_in, Country.Region, ignore.case = TRUE)
@@ -1405,14 +1393,13 @@ build_all_states <- function(combined = TRUE,
                              write_dfs = FALSE,
                              plot_wa_and = FALSE,
                              plot_daily_cases = FALSE,
-                             plot_state_cases_per_hundy = FALSE,
-                             version = 3.0) {
+                             plot_state_cases_per_hundy = FALSE) {
   if (exists("usa_df")) {
     remove(usa_df, envir = .GlobalEnv)
   }
 
   if (plot_wa_and) {
-    wa_cases <- get_admin1("Washington", version = version)
+    wa_cases <- get_admin1("Washington")
     max_wa_y = max(wa_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
     wa_s_txt <-
       paste("Washington (pop=", pop_format(wa_cases$pop[1]), ")", sep = "")
@@ -1424,7 +1411,7 @@ build_all_states <- function(combined = TRUE,
     if (VERBOSE) {
       print(paste("state is", state))
     }
-    new_df <- get_admin1(state, version = version)
+    new_df <- get_admin1(state)
 
     if (is.null(new_df)) {
       next
@@ -1440,7 +1427,6 @@ build_all_states <- function(combined = TRUE,
     if (keep_dfs) {
       st_string <- make_state_string(state)
       new_df_name <- paste(st_string, "_df", sep = "")
-      print(paste("about to assign new_df to", new_df_name, "for state", state))
       assign(new_df_name, new_df, envir = .GlobalEnv)
       
       # make the text name for graphs
@@ -1586,8 +1572,7 @@ if (live_mode) {
 
 wa_east_west <- function(plot_casesned = FALSE,
                          plot_casesned_cases = FALSE,
-                         file_base = NULL,
-                         version = 2.0) {
+                         file_base = NULL) {
   state = "Washington"
   loc_txt = "Eastern / Western Washington"
 
@@ -1605,7 +1590,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     }
 
     if (wa_counties[which(wa_counties$county == county),]$eastwest == "eastern") {
-      print("east")
+      cat("east\n")
       east_df <- get_admin2(state = state, county = county)
       if (exists("combined_east_df")) {
         combined_east_df <- aggregate_dfs(combined_east_df, east_df)
@@ -1614,7 +1599,7 @@ wa_east_west <- function(plot_casesned = FALSE,
         combined_east_df <- east_df
       }
     } else {
-      print("west")
+      cat("west\n")
       west_df <- get_admin2(state = state, county = county)
       if (exists("combined_west_df")) {
         combined_west_df <- aggregate_dfs(combined_west_df, west_df)
@@ -2102,7 +2087,7 @@ if (live_mode) {
   make_maps()
 }
 
-prod <- function(version = 1.0) {
+doit <- function() {
   if (USA_ALL) {
     usa_cases <- build_all_states(
       combined = TRUE,
@@ -2110,8 +2095,7 @@ prod <- function(version = 1.0) {
       write_dfs = TRUE,
       plot_state_cases_per_hundy = TRUE,
       plot_wa_and = TRUE,
-      plot_daily_cases = TRUE,
-      version = version
+      plot_daily_cases = TRUE
     )
     make_plot(
       usa_cases,
@@ -2124,34 +2108,34 @@ prod <- function(version = 1.0) {
     file_to_bucket("USA_daily_cases.jpg")
   }
 
-  ic_cases <- get_admin2("Washington", "Island", version = version)
-  kc_cases <- get_admin2("Washington", "King", version = version)
+  ic_cases <- get_admin2("Washington", "Island")
+  kc_cases <- get_admin2("Washington", "King")
   kc_txt <-
     paste("King County, WA (pop=", pop_format(kc_cases$pop[1]), ")", sep =
             "")
-  wh_cases <- get_admin2("Washington", "Whitman", version = version)
-  kit_cases <- get_admin2("Washington", "Kitsap", version = version)
+  wh_cases <- get_admin2("Washington", "Whitman")
+  kit_cases <- get_admin2("Washington", "Kitsap")
   sno_cases <-
-    get_admin2("Washington", "Snohomish", version = version)
-  ska_cases <- get_admin2("Washington", "Skagit", version = version)
+    get_admin2("Washington", "Snohomish")
+  ska_cases <- get_admin2("Washington", "Skagit")
   b_co_cases <-
-    get_admin2("Maryland", "Baltimore", version = version)
+    get_admin2("Maryland", "Baltimore")
   b_ci_cases <-
-    get_admin2("Maryland", "Baltimore City", version = version)
-  # wic_cases <- get_admin2("Maryland", "Wicomico", version = version)
-  mad_cases <- get_admin2("Virginia", "Madison", version = version)
+    get_admin2("Maryland", "Baltimore City")
+  # wic_cases <- get_admin2("Maryland", "Wicomico")
+  mad_cases <- get_admin2("Virginia", "Madison")
   all_cases <-
-    get_admin2("Pennsylvania", "Allegheny", version = version)
-  yak_cases <- get_admin2("Washington", "Yakima", version = version)
-  # oc_cases <- get_admin2("California", "Orange", version = version)
-  che_cases <- get_admin2("Washington", "Chelan", version = version)
+    get_admin2("Pennsylvania", "Allegheny")
+  yak_cases <- get_admin2("Washington", "Yakima")
+  # oc_cases <- get_admin2("California", "Orange")
+  che_cases <- get_admin2("Washington", "Chelan")
   doug_cases <-
-    get_admin2("Washington", "Douglas", version = version)
-  # lane_cases <- get_admin2("Oregon", "Lane", version = version)
+    get_admin2("Washington", "Douglas")
+  # lane_cases <- get_admin2("Oregon", "Lane")
   sji_cases <-
-    get_admin2("Washington", "San Juan", version = version)
+    get_admin2("Washington", "San Juan")
   jeff_cases <-
-    get_admin2("Washington", "Jefferson", version = version)
+    get_admin2("Washington", "Jefferson")
 
   ca_bc_cases <-
     get_admin1(admin0 = "Canada", admin1 = "British Columbia")
@@ -2572,8 +2556,7 @@ prod <- function(version = 1.0) {
   wa_east_west(
     plot_casesned = TRUE,
     plot_casesned_cases = FALSE,
-    file_base = "wa_east_west",
-    version = version
+    file_base = "wa_east_west"
   )
   file_to_bucket(file = "wa_east_west_cases_per_hundy.jpg")
 
@@ -3031,7 +3014,7 @@ prod <- function(version = 1.0) {
   dev.off()
   file_to_bucket(filename)
   
-}  #prod
+}  #doit
 
 if (live_mode) {
   dev.off()
