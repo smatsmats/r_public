@@ -1,6 +1,15 @@
 source("../covid19_functions.R", chdir = TRUE)
 library(testthat)
 
+# test data
+wa_df <- read.csv("./wa.csv")
+
+setwd("/tmp")
+
+test_that("state_pop_txt", {
+  expect_equal(state_pop_txt("Washington", wa_df), "Washington State (pop=7,614,893)")
+})
+
 test_that("pop_format", {
   expect_equal(pop_format(.8), "80,000")
 })
