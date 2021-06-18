@@ -31,6 +31,7 @@ USA_ALL <- TRUE
 USE_GGPLOT <- TRUE       # versus base graphs
 VERBOSE <- FALSE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
+live_mode <- FALSE
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
@@ -72,15 +73,6 @@ ylab_cases_hundy_txt <- "Cases / 100,000 Population"
 ylab_daily_cases_hundy_txt <- "Daily Cases / 100,000 Population"
 plot_file_width <- (480 * 2)
 plot_file_height <- (310 * 2)
-
-args = commandArgs(trailingOnly = TRUE)
-print(args)
-if (length(args) == 0) {
-  live_mode = TRUE
-} else if (length(args) == 1) {
-  live_mode = FALSE
-}
-live_mode = FALSE
 
 file_to_bucket <- function(file, unlink_after = TRUE) {
   if (PUSH_TO_AMAZON) {
@@ -317,30 +309,32 @@ get_pop <- function(state = NULL,
   
 }
 
-
-
-if (live_mode) {
-  print(get_pop("Maryland", "Baltimore City"))
-  print(get_pop("Washington", "Island"))
-  print(get_pop("Washington", "island"))
-  print(get_pop("Washington"))
-  print(get_pop("Washington", "Total"))
-  print(get_pop("Alabama"))
-  print(get_pop("District Of Columbia"))
-  print(get_pop("District of Columbia"))
-  print(get_pop("district of columbia"))
-  print(get_pop("Puerto Rico"))
-  print(get_pop("american samoa"))
-  print(get_pop(country = "india"))
-  print(get_pop(country = "Canada"))
-  print(get_pop(state = "Washington", county = "Columbia"))
-  print(get_pop("Diamond Princess"))
-  
+# cleans-up some goofy county names - needed this with US Census pops and
+# election results
+get_full_county_name <- function(state = "not alaska",  county) {
+  if (state == "Alaska") {
+    full_county_name <- county
+  } else if (state == "District of Columbia") {
+    full_county_name <- "District of Columbia"
+  } else if (state == "Louisiana") {
+    full_county_name = paste(county, "Parish")
+  } else {
+    mystate <- state
+    trans <-
+      subset(county_transformations,
+             state == mystate & county_in == county)
+    if (nrow(trans) == 1) {
+      full_county_name <- trans$county_out
+    } else {
+      full_county_name = paste(county, "County")
+    }
+  }
+  return(full_county_name)
 }
 
 # old function where we only returned winning prez candidate
 get_2016_prez <- function(state, county) {
-  mycounty <- get_full_county_name(state, county)
+  mycounty <- county
   if (state == "Alaska") {
     hill_trump <- subset(prez_2016, state.name == state)$lead[1]
   } else if (state == "District of Columbia") {
@@ -355,10 +349,6 @@ get_2016_prez <- function(state, county) {
   } else {
     return(hill_trump)
   }
-}
-
-get_redblue <-  function(state, county) {
-  get_redblue2016(state, county)
 }
 
 get_redblue2016 <- function(state, county) {
@@ -396,6 +386,10 @@ get_redblue2016 <- function(state, county) {
   red_pct <- red_pct_t / (red_pct_t + blue_pct_t)
   blue_pct <- blue_pct_t / (red_pct_t + blue_pct_t)
   return(c(red_pct, blue_pct))
+}
+
+get_redblue <-  function(state, county) {
+  get_redblue2016(state, county)
 }
 
 if (live_mode) {

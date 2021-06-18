@@ -25,6 +25,24 @@ test_that("pop_from_jhu", {
   expect_equal(dim(population), c(4195,12))
 })
 
+test_that("get_pop", {
+  expect_equal(get_pop("Maryland", "Baltimore City"), 5.9349, tolerance = 1)
+  expect_equal(get_pop("Washington", "Island"), 0.85141, tolerance = 1)
+  expect_equal(get_pop("Washington", "island"), 0.85141, tolerance = 1)
+  expect_equal(get_pop("Washington"), 76.14893, tolerance = 1)
+  expect_equal(get_pop("Washington", "Total"), 76.14893, tolerance = 1)
+  expect_equal(get_pop("Alabama"), 49.03185, tolerance = 1)
+  expect_equal(get_pop("District Of Columbia"), 7.05749, tolerance = 1)
+  expect_equal(get_pop("District of Columbia"), 7.05749, tolerance = 1)
+  expect_equal(get_pop("district of columbia"), 7.05749, tolerance = 1)
+  expect_equal(get_pop("Puerto Rico"), 31.93694, tolerance = 1)
+  expect_equal(get_pop("american samoa"), 0.55641, tolerance = 1)
+  expect_equal(get_pop(country = "india"), 13800.04, tolerance = 1)
+  expect_equal(get_pop(country = "Canada"), 378.557, tolerance = 1)
+  expect_equal(get_pop(state = "Washington", county = "Columbia"), 0.03985, tolerance = .01)
+  expect_equal(get_pop("Diamond Princess"), 0)
+})
+
 
 #  expect_equal(get_population(), 0)
 #  expect_is(get_population(), 0)
