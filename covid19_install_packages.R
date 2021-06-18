@@ -14,3 +14,6 @@ install.packages("lubridate")
 install.packages("tidyr")
 install.packages("ggplot2")
 install.packages("stringr")
+
+#for testing
+install.packages("testthat")
