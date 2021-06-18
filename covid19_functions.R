@@ -28,7 +28,6 @@ setwd("/tmp")
 # Some flags
 ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
-USE_GGPLOT <- TRUE       # versus base graphs
 VERBOSE <- FALSE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
 live_mode <- FALSE
@@ -417,124 +416,20 @@ if (live_mode) {
   ))
 }
 
-
-make_plot_base <- function(df,
-                           loc_txt,
-                           main_txt = NULL,
-                           cases_per_hundy = TRUE,
-                           cases = TRUE,
-                           daily_cases = FALSE,
-                           file_base = NULL) {
-  # maybe bail
-  if (is.null(df)) {
-    return(NULL)
-  }
-  
-  # maybe override the global cumulative_c19_cases_txt
-  if (!is.null(main_txt)) {
-    cumulative_c19_cases_txt = main_txt
-  }
-  
-  if (cases_per_hundy) {
-    if (!is.null(file_base)) {
-      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep = "")
-      jpeg(filename = f,
-           width = plot_file_width,
-           height = plot_file_height)
-    }
-    
-    plot(
-      df$dates,
-      df$cases_per_hundy,
-      main = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
-      ylab = ylab_cases_hundy_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "purple",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-    
-    if (!is.null(file_base)) {
-      dev.off()
-    }
-  }
-  
-  if (cases) {
-    if (!is.null(file_base)) {
-      f <- paste(file_base, "_cases", ".jpg", sep = "")
-      jpeg(filename = f,
-           width = plot_file_width,
-           height = plot_file_height)
-    }
-    
-    plot(
-      df$dates,
-      df$cases,
-      main = paste(loc_txt, cumulative_c19_cases_txt),
-      ylab = ylab_cases_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "purple",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-    
-    if (!is.null(file_base)) {
-      dev.off()
-    }
-  } # if cases
-  
-  if (daily_cases) {
-    if (!is.null(file_base)) {
-      f <- paste(file_base, "_daily_cases", ".jpg", sep = "")
-      jpeg(filename = f,
-           width = plot_file_width,
-           height = plot_file_height)
-    }
-    
-    maxy = max(df$daily_cases)
-    plot(
-      df$dates,
-      df$daily_cases,
-      main = paste(loc_txt, daily_c19_cases_txt),
-      ylab = ylab_daily_cases_txt,
-      ylim = c(0, maxy),
-      xlab = "Dates",
-      type = "l",
-      col = "mediumpurple1",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
-    )
-    lines(df$dates, df$daily_cases_avrg14d, col = "red")
-    legend(
-      "topleft",
-      legend = c("Daily", "14 Day Average"),
-      col = c("mediumpurple1", "red"),
-      lty = 1
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-    
-    
-    if (!is.null(file_base)) {
-      dev.off()
-    }
-  } # if daily cases
-}
-
-make_plot_gg <- function(df,
-                         loc_txt,
-                         main_txt = NULL,
-                         cases_per_hundy = TRUE,
-                         cases = TRUE,
-                         daily_cases = FALSE,
-                         file_base = NULL) {
+make_plot <- function(df,
+                      loc_txt,
+                      main_txt = NULL,
+                      cases_per_hundy = TRUE,
+                      cases = TRUE,
+                      daily_cases = FALSE,
+                      file_base = NULL) {
   # maybe bail
   if (is.null(df)) {
     return(NULL)
   }
   
   # bail if we have no population
-  if (df[1,]$pop == 0) {
+  if (df[1, ]$pop == 0) {
     return(NULL)
   }
   
@@ -666,41 +561,6 @@ make_plot_gg <- function(df,
   return(p)
 }
 
-make_plot <- function(df,
-                      loc_txt,
-                      main_txt = NULL,
-                      cases_per_hundy = FALSE,
-                      cases = FALSE,
-                      daily_cases = FALSE,
-                      file_base = NULL) {
-  if (USE_GGPLOT) {
-    return(
-      make_plot_gg(
-        df = df,
-        loc_txt = loc_txt,
-        main_txt = main_txt,
-        cases_per_hundy = cases_per_hundy,
-        cases = cases,
-        daily_cases = daily_cases,
-        file_base = file_base
-      )
-    )
-  }
-  else {
-    return(
-      make_plot_base(
-        df = df,
-        loc_txt = loc_txt,
-        main_txt = main_txt,
-        cases_per_hundy = cases_per_hundy,
-        cases = cases,
-        daily_cases = daily_cases,
-        file_base = file_base
-      )
-    )
-  }
-}
-
 multi_make_plot <- function(df,
                             multi_cats,
                             loc_txt = "loc_txt",
@@ -749,20 +609,6 @@ multi_make_plot <- function(df,
   }
   
 } # multi_make_plot
-
-
-if (live_mode) {
-  ic_cases <- get_admin2("Washington",
-                         county = "Island")
-  make_plot(
-    df = ic_cases,
-    loc_txt = "bongo",
-    cases_per_hundy = TRUE,
-    cases = TRUE,
-    daily_cases = TRUE
-  )
-  
-}
 
 build_cols <- function(df, pop) {
   if (pop > 0) {
@@ -1176,11 +1022,6 @@ aggregate_dfs <- function(in_df, new_df) {
   
 }
 
-if (live_mode) {
-  
-}
-
-
 get_admin1 <- function(admin1,
                        admin0 = "US") {
   cat("in get_admin1, state:",
@@ -1318,7 +1159,7 @@ build_all_states <- function(combined = TRUE,
     }
     
     # really no point if there isn"t anyone there
-    if (new_df[1,]$pop == 0) {
+    if (new_df[1, ]$pop == 0) {
       next
     }
     
@@ -1357,78 +1198,45 @@ build_all_states <- function(combined = TRUE,
            width = plot_file_width,
            height = plot_file_height)
       
-      if (USE_GGPLOT == FALSE) {
-        max_new_y = max(new_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
-        maxy <- if (max_wa_y > max_new_y) {
-          max_wa_y
-        } else {
-          max_new_y
-        }
-        s_txt <-
-          paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep = "")
-        
-        plot(
-          new_df$dates,
-          new_df$daily_cases_per_hundy_avrg14d,
-          main = "Daily Cases per 100,000, 14day Average",
-          ylab = ylab_daily_cases_hundy_txt,
-          ylim = c(0, maxy),
-          xlab = "Dates",
-          type = "l",
-          col = "black",
-          xlim = as.Date(c(plot_start_date, plot_end_date))
-        )
-        lines(washington_df$dates,
-              washington_df$daily_cases_per_hundy_avrg14d,
-              col = "darkgreen")
-        legend(
-          "topleft",
-          legend = c(s_txt, wa_s_txt),
-          col = c("black", "darkgreen"),
-          lty = 1
-        )
-        mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-      }
-      else {
-        new_df$wa_cases <- wa_cases$cases
-        new_df$wa_daily_cases <- wa_cases$daily_cases
-        new_df$wa_daily_cases_per_hundy_avrg14d <-
-          wa_cases$daily_cases_per_hundy_avrg14d
-        s_txt <-
-          paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep = "")
-        
-        p <- ggplot(data = new_df, aes(dates)) +
-          geom_line(aes(y = daily_cases_per_hundy_avrg14d,
-                        colour = s_txt)) +
-          geom_line(aes(y = wa_daily_cases_per_hundy_avrg14d,
-                        colour = wa_s_txt)) +
-          scale_color_manual(values = c("black", "darkgreen")) +
-          ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
-          labs(
-            title = "Daily Cases per 100,000, 14day Average",
-            subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-            x = "Dates",
-            y = ylab_daily_cases_hundy_txt
-          ) +
-          theme_bw() +
-          theme(
-            panel.grid.minor = element_blank(),
-            #            panel.grid.major = element_blank(),
-            panel.background = element_blank(),
-            plot.title = element_text(hjust = 0.5),
-            plot.subtitle = element_text(hjust = 0.5),
-            plot.caption = element_text(hjust = 0.5),
-            legend.title = element_blank(),
-            legend.position = c(0.35, 0.87),
-            legend.background = element_rect(
-              linetype = "solid",
-              size = 0.2,
-              colour = "black"
-            )
+      new_df$wa_cases <- wa_cases$cases
+      new_df$wa_daily_cases <- wa_cases$daily_cases
+      new_df$wa_daily_cases_per_hundy_avrg14d <-
+        wa_cases$daily_cases_per_hundy_avrg14d
+      s_txt <-
+        paste(state, " (pop=", pop_format(new_df$pop[1]), ")", sep = "")
+      
+      p <- ggplot(data = new_df, aes(dates)) +
+        geom_line(aes(y = daily_cases_per_hundy_avrg14d,
+                      colour = s_txt)) +
+        geom_line(aes(y = wa_daily_cases_per_hundy_avrg14d,
+                      colour = wa_s_txt)) +
+        scale_color_manual(values = c("black", "darkgreen")) +
+        ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
+        labs(
+          title = "Daily Cases per 100,000, 14day Average",
+          subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+          x = "Dates",
+          y = ylab_daily_cases_hundy_txt
+        ) +
+        theme_bw() +
+        theme(
+          panel.grid.minor = element_blank(),
+          #            panel.grid.major = element_blank(),
+          panel.background = element_blank(),
+          plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          plot.caption = element_text(hjust = 0.5),
+          legend.title = element_blank(),
+          legend.position = c(0.35, 0.87),
+          legend.background = element_rect(
+            linetype = "solid",
+            size = 0.2,
+            colour = "black"
           )
-        
-        print(p)
-      }
+        )
+      
+      print(p)
+      
       dev.off()
       file_to_bucket(filename)
     }
@@ -1437,10 +1245,6 @@ build_all_states <- function(combined = TRUE,
   
   return(usa_df)
   
-}
-
-if (live_mode) {
-  usa_df <- build_all_states()
 }
 
 wa_east_west <- function(plot_casesned = FALSE,
@@ -1462,7 +1266,7 @@ wa_east_west <- function(plot_casesned = FALSE,
       next
     }
     
-    if (wa_counties[which(wa_counties$county == county), ]$eastwest == "eastern") {
+    if (wa_counties[which(wa_counties$county == county),]$eastwest == "eastern") {
       cat("east\n")
       east_df <- get_admin2(state = state, county = county)
       if (exists("combined_east_df")) {
@@ -2098,212 +1902,97 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
   
-  if (USE_GGPLOT) {
-    linetypes <- c(
-      "wa" = "solid",
-      "mt" =  "solid",
-      "ic" = "solid",
-      "kc" = "solid",
-      "yak" = "solid",
-      "all" = "solid",
-      "mad" = "solid",
-      "sji" = "solid",
-      "jeff" = "solid",
-      "kit" = "solid",
-      "usa" = "dashed",
-      "b_co" = "solid",
-      "b_ci" = "solid"
-    )
-    
-    #   linetypes <- c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")
-    temp_df <- data.frame(
-      dates = washington_df$dates,
-      wa = washington_df$cases_per_hundy,
-      mt = montana_df$cases_per_hundy,
-      ic = ic_cases$cases_per_hundy,
-      kc = kc_cases$cases_per_hundy,
-      yak = yak_cases$cases_per_hundy,
-      all = all_cases$cases_per_hundy,
-      mad = mad_cases$cases_per_hundy,
-      sji = sji_cases$cases_per_hundy,
-      jeff = jeff_cases$cases_per_hundy,
-      kit = kit_cases$cases_per_hundy,
-      b_co = b_co_cases$cases_per_hundy,
-      b_ci = b_ci_cases$cases_per_hundy,
-      usa = usa_cases$cases_per_hundy
-    )
-    p <-
-      ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
-      geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
-      geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
-      geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
-      geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
-      geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
-      geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
-      geom_line(aes(y = kit, colour = kit_txt), linetype = "solid") +
-      geom_line(aes(y = jeff, colour = jeff_txt), linetype = "solid") +
-      geom_line(aes(y = sji, colour = sji_txt), linetype = "solid") +
-      geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
-      geom_line(aes(y = all, colour = all_txt), linetype = "solid") +
-      geom_line(aes(y = mad, colour = mad_txt), linetype = "solid") +
-      geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
-      scale_color_manual(
-        values = c(
-          "black",
-          "darkred",
-          "red",
-          "blue",
-          "pink",
-          "green",
-          "grey",
-          "lightblue",
-          "orange",
-          "purple",
-          "red",
-          "darkgreen",
-          "yellow"
-        )
-      ) +
-      #    scale_linetype_manual( values = c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")) +
-      #      scale_linetype_manual( values = linetypes ) +
-      ylim(0, max(usa_cases$cases_per_hundy, na.rm = TRUE)) +
-      #      labs(title = main_cases_hundy_txt,
-      #           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
-      #           x = "Dates",
-      #           y = ylab_cases_hundy_txt) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        panel.border = element_blank(),
-        axis.line = element_line(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        #        legend.title = element_blank(),
-        legend.position = c(0.35, 0.80),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
-      )
-    print(p)
-    
-  }
-  else {
-    plot(
-      kc_cases$dates,
-      kc_cases$cases_per_hundy,
-      main = paste(cumulative_c19_cases_txt, hundy_txt),
-      ylab = ylab_cases_hundy_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "green",
-      lwd = 2,
-      xlim = as.Date(c(plot_start_date, plot_end_date)),
-      ylim = c(0, max(b_ci_cases$cases_per_hundy, na.rm = TRUE))
-    )
-    legend(
-      "topleft",
-      legend = c(
-        kc_txt,
-        yak_txt,
-        ic_txt,
-        kit_txt,
-        b_co_txt,
-        b_ci_txt,
-        all_txt,
-        mad_txt,
-        montana_s_txt,
-        sji_txt,
-        jeff_txt
-      ),
-      col = c(
-        "green",
-        "Grey",
-        "blue",
-        "yellow",
-        "red",
-        "red",
+  linetypes <- c(
+    "wa" = "solid",
+    "mt" =  "solid",
+    "ic" = "solid",
+    "kc" = "solid",
+    "yak" = "solid",
+    "all" = "solid",
+    "mad" = "solid",
+    "sji" = "solid",
+    "jeff" = "solid",
+    "kit" = "solid",
+    "usa" = "dashed",
+    "b_co" = "solid",
+    "b_ci" = "solid"
+  )
+  
+  #   linetypes <- c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")
+  temp_df <- data.frame(
+    dates = washington_df$dates,
+    wa = washington_df$cases_per_hundy,
+    mt = montana_df$cases_per_hundy,
+    ic = ic_cases$cases_per_hundy,
+    kc = kc_cases$cases_per_hundy,
+    yak = yak_cases$cases_per_hundy,
+    all = all_cases$cases_per_hundy,
+    mad = mad_cases$cases_per_hundy,
+    sji = sji_cases$cases_per_hundy,
+    jeff = jeff_cases$cases_per_hundy,
+    kit = kit_cases$cases_per_hundy,
+    b_co = b_co_cases$cases_per_hundy,
+    b_ci = b_ci_cases$cases_per_hundy,
+    usa = usa_cases$cases_per_hundy
+  )
+  p <-
+    ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
+    geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
+    geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
+    geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
+    geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
+    geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
+    geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
+    geom_line(aes(y = kit, colour = kit_txt), linetype = "solid") +
+    geom_line(aes(y = jeff, colour = jeff_txt), linetype = "solid") +
+    geom_line(aes(y = sji, colour = sji_txt), linetype = "solid") +
+    geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
+    geom_line(aes(y = all, colour = all_txt), linetype = "solid") +
+    geom_line(aes(y = mad, colour = mad_txt), linetype = "solid") +
+    geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
+    scale_color_manual(
+      values = c(
+        "black",
         "darkred",
+        "red",
+        "blue",
+        "pink",
+        "green",
+        "grey",
         "lightblue",
         "orange",
         "purple",
-        "black"
-      ),
-      lty = 1:2,
-      cex = 0.8
+        "red",
+        "darkgreen",
+        "yellow"
+      )
+    ) +
+    #    scale_linetype_manual( values = c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")) +
+    #      scale_linetype_manual( values = linetypes ) +
+    ylim(0, max(usa_cases$cases_per_hundy, na.rm = TRUE)) +
+    #      labs(title = main_cases_hundy_txt,
+    #           subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+    #           x = "Dates",
+    #           y = ylab_cases_hundy_txt) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      axis.line = element_line(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      #        legend.title = element_blank(),
+      legend.position = c(0.35, 0.80),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
+      )
     )
-    legend(
-      "top",
-      legend = "WA Combined",
-      col = "darkgreen",
-      lty = 5,
-      lwd = 2
-    )
-    lines(
-      washington_df$dates,
-      washington_df$cases_per_hundy,
-      col = "darkgreen",
-      lty = 5,
-      lwd = 2
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-    lines(
-      ic_cases$dates,
-      ic_cases$cases_per_hundy,
-      col = "blue",
-      lty = 1,
-      lwd = 2
-    )
-    lines(kit_cases$dates,
-          kit_cases$cases_per_hundy,
-          col = "yellow",
-          lty = 2)
-    lines(yak_cases$dates,
-          yak_cases$cases_per_hundy,
-          col = "grey",
-          lty = 2)
-    lines(b_co_cases$dates,
-          b_co_cases$cases_per_hundy,
-          col = "red",
-          lty = 1)
-    lines(b_ci_cases$dates,
-          b_ci_cases$cases_per_hundy,
-          col = "red",
-          lty = 2)
-    lines(all_cases$dates,
-          all_cases$cases_per_hundy,
-          col = "darkred",
-          lty = 1)
-    lines(mad_cases$dates,
-          mad_cases$cases_per_hundy,
-          col = "lightblue",
-          lty = 2)
-    lines(montana_df$dates,
-          montana_df$cases_per_hundy,
-          col = "orange",
-          lty = 1)
-    lines(sji_cases$dates,
-          sji_cases$cases_per_hundy,
-          col = "purple",
-          lty = 2)
-    lines(jeff_cases$dates,
-          jeff_cases$cases_per_hundy,
-          col = "black",
-          lty = 1)
-    # re-add king to make sure it"s on "top"
-    lines(
-      kc_cases$dates,
-      kc_cases$cases_per_hundy,
-      col = "green",
-      lty = 1,
-      lwd = 2
-    )
-    
-  } # USE_GGPLOT
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
@@ -2365,64 +2054,39 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
   
-  if (USE_GGPLOT) {
-    apple_cup <- data.frame(wh_cases$dates,
-                            wh_cases$cases_per_hundy,
-                            kc_cases$cases_per_hundy)
-    p <- ggplot(data = apple_cup, aes(wh_cases.dates)) +
-      geom_line(aes(y = wh_cases.cases_per_hundy,
-                    colour = wh_txt)) +
-      geom_line(aes(y = kc_cases.cases_per_hundy,
-                    colour = kc_txt)) +
-      scale_color_manual(values = c("purple", "darkred")) +
-      ylim(0, max(apple_cup$wh_cases.cases_per_hundy)) +
-      labs(
-        title = paste(cumulative_c19_cases_txt, hundy_txt),
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_cases_hundy_txt
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  apple_cup <- data.frame(wh_cases$dates,
+                          wh_cases$cases_per_hundy,
+                          kc_cases$cases_per_hundy)
+  p <- ggplot(data = apple_cup, aes(wh_cases.dates)) +
+    geom_line(aes(y = wh_cases.cases_per_hundy,
+                  colour = wh_txt)) +
+    geom_line(aes(y = kc_cases.cases_per_hundy,
+                  colour = kc_txt)) +
+    scale_color_manual(values = c("purple", "darkred")) +
+    ylim(0, max(apple_cup$wh_cases.cases_per_hundy)) +
+    labs(
+      title = paste(cumulative_c19_cases_txt, hundy_txt),
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  }
-  else {
-    plot(
-      wh_cases$dates,
-      wh_cases$cases_per_hundy,
-      main = paste(cumulative_c19_cases_txt, hundy_txt),
-      ylab = ylab_cases_hundy_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "darkred",
-      xlim = as.Date(c(plot_start_date, plot_end_date)),
-      ylim = c(0, max(wh_cases$cases_per_hundy))
     )
-    legend(
-      "topleft",
-      legend = c(wh_txt, kc_txt),
-      col = c("darkred", "purple"),
-      lty = 1,
-      cex = 2
-    )
-    lines(kc_cases$dates, kc_cases$cases_per_hundy, col = "purple")
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-  } # USE_GGPLOT
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
@@ -2467,71 +2131,43 @@ doit <- function() {
        height = plot_file_height)
   maxy = max(b_co_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
-  if (USE_GGPLOT) {
-    temp_df <- data.frame(
-      dates = wh_cases$dates,
-      kc = kc_cases$daily_cases_per_hundy_avrg14d,
-      ic = ic_cases$daily_cases_per_hundy_avrg14d,
-      wa = washington_df$daily_cases_per_hundy_avrg14d,
-      b_co = b_co_cases$daily_cases_per_hundy_avrg14d
-    )
-    p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = kc, colour = kc_txt)) +
-      geom_line(aes(y = ic, colour = ic_txt)) +
-      geom_line(aes(y = b_co, colour = b_co_txt)) +
-      scale_color_manual(values = c("red", "blue", "green")) +
-      ylim(0, maxy) +
-      labs(
-        title = main_daily_cases_hundy_14d_avrg_txt,
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_daily_cases_hundy_txt
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  
+  temp_df <- data.frame(
+    dates = wh_cases$dates,
+    kc = kc_cases$daily_cases_per_hundy_avrg14d,
+    ic = ic_cases$daily_cases_per_hundy_avrg14d,
+    wa = washington_df$daily_cases_per_hundy_avrg14d,
+    b_co = b_co_cases$daily_cases_per_hundy_avrg14d
+  )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = kc, colour = kc_txt)) +
+    geom_line(aes(y = ic, colour = ic_txt)) +
+    geom_line(aes(y = b_co, colour = b_co_txt)) +
+    scale_color_manual(values = c("red", "blue", "green")) +
+    ylim(0, maxy) +
+    labs(
+      title = main_daily_cases_hundy_14d_avrg_txt,
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  }
-  else {
-    plot(
-      kc_cases$dates,
-      kc_cases$daily_cases_per_hundy_avrg14d,
-      main = "Daily Cases per 100,000, 14day Average",
-      ylab = ylab_daily_cases_hundy_txt,
-      ylim = c(0, maxy),
-      xlab = "Dates",
-      type = "l",
-      col = "green",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
     )
-    lines(ic_cases$dates,
-          ic_cases$daily_cases_per_hundy_avrg14d,
-          col = "blue")
-    lines(b_co_cases$dates,
-          b_co_cases$daily_cases_per_hundy_avrg14d,
-          col = "red")
-    legend(
-      "topleft",
-      legend = c(kc_txt, ic_txt, b_co_txt),
-      col = c("green", "blue", "red"),
-      lty = 1
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-  } # USE_GGPLOT
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
@@ -2544,64 +2180,35 @@ doit <- function() {
   maxy <-
     max(washington_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
-  if (USE_GGPLOT) {
-    p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = wa, colour = washington_s_txt)) +
-      geom_line(aes(y = ic, colour = ic_txt)) +
-      geom_line(aes(y = kc, colour = kc_txt)) +
-      scale_color_manual(values = c("blue", "green", "darkgreen")) +
-      ylim(0, maxy) +
-      labs(
-        title = main_daily_cases_hundy_14d_avrg_txt,
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_daily_cases_hundy_txt
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = wa, colour = washington_s_txt)) +
+    geom_line(aes(y = ic, colour = ic_txt)) +
+    geom_line(aes(y = kc, colour = kc_txt)) +
+    scale_color_manual(values = c("blue", "green", "darkgreen")) +
+    ylim(0, maxy) +
+    labs(
+      title = main_daily_cases_hundy_14d_avrg_txt,
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  }
-  else {
-    plot(
-      kc_cases$dates,
-      kc_cases$daily_cases_per_hundy_avrg14d,
-      main = "Daily Cases per 100,000, 14day Average",
-      ylab = ylab_daily_cases_hundy_txt,
-      ylim = c(0, maxy),
-      xlab = "Dates",
-      type = "l",
-      col = "green",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
     )
-    lines(ic_cases$dates,
-          ic_cases$daily_cases_per_hundy_avrg14d,
-          col = "blue")
-    lines(washington_df$dates,
-          washington_df$daily_cases_per_hundy_avrg14d,
-          col = "darkgreen")
-    legend(
-      "topleft",
-      legend = c(ic_txt, kc_txt, washington_s_txt),
-      col = c("green", "blue", "darkgreen"),
-      lty = 1
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-  } # USE_GGPLOT
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
@@ -2681,113 +2288,63 @@ doit <- function() {
   
   maxy = max(montana_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
-  if (USE_GGPLOT) {
-    temp_df <- data.frame(
-      dates = washington_df$dates,
-      or = oregon_df$daily_cases_per_hundy_avrg14d,
-      mi = michigan_df$daily_cases_per_hundy_avrg14d,
-      wa = washington_df$daily_cases_per_hundy_avrg14d,
-      ca = california_df$daily_cases_per_hundy_avrg14d,
-      md = maryland_df$daily_cases_per_hundy_avrg14d,
-      id = idaho_df$daily_cases_per_hundy_avrg14d,
-      mt = montana_df$daily_cases_per_hundy_avrg14d,
-      ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
-      usa = usa_cases$daily_cases_per_hundy_avrg14d,
-      nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
-      south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
-      wyoming = wyoming_df$daily_cases_per_hundy_avrg14d,
-      colorado = colorado_df$daily_cases_per_hundy_avrg14d,
-      kansas = kansas_df$daily_cases_per_hundy_avrg14d,
-      missouri = missouri_df$daily_cases_per_hundy_avrg14d,
-      iowa = iowa_df$daily_cases_per_hundy_avrg14d
-    )
-    p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = or, colour = oregon_s_txt)) +
-      geom_line(aes(y = wa, colour = washington_s_txt)) +
-      geom_line(aes(y = mt, colour = montana_s_txt)) +
-      geom_line(aes(y = mi, colour = michigan_s_txt)) +
-      #      geom_line(aes(y = india, colour=india_txt)) +
-      geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
-      scale_color_manual(values = c("black", "orange", "lightgreen", "red", "darkgreen")) +
-      scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
-      labs(
-        title = main_daily_cases_hundy_14d_avrg_txt,
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_daily_cases_hundy_txt
-      ) +
-      scale_y_continuous(
-        limits = c(0, maxy),
-        sec.axis = sec_axis(trans =  ~ . * 14, name =
-                              "14 Day Sum / 100,000 Population")
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  temp_df <- data.frame(
+    dates = washington_df$dates,
+    or = oregon_df$daily_cases_per_hundy_avrg14d,
+    mi = michigan_df$daily_cases_per_hundy_avrg14d,
+    wa = washington_df$daily_cases_per_hundy_avrg14d,
+    ca = california_df$daily_cases_per_hundy_avrg14d,
+    md = maryland_df$daily_cases_per_hundy_avrg14d,
+    id = idaho_df$daily_cases_per_hundy_avrg14d,
+    mt = montana_df$daily_cases_per_hundy_avrg14d,
+    ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
+    usa = usa_cases$daily_cases_per_hundy_avrg14d,
+    nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
+    south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
+    wyoming = wyoming_df$daily_cases_per_hundy_avrg14d,
+    colorado = colorado_df$daily_cases_per_hundy_avrg14d,
+    kansas = kansas_df$daily_cases_per_hundy_avrg14d,
+    missouri = missouri_df$daily_cases_per_hundy_avrg14d,
+    iowa = iowa_df$daily_cases_per_hundy_avrg14d
+  )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = or, colour = oregon_s_txt)) +
+    geom_line(aes(y = wa, colour = washington_s_txt)) +
+    geom_line(aes(y = mt, colour = montana_s_txt)) +
+    geom_line(aes(y = mi, colour = michigan_s_txt)) +
+    #      geom_line(aes(y = india, colour=india_txt)) +
+    geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
+    scale_color_manual(values = c("black", "orange", "lightgreen", "red", "darkgreen")) +
+    scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
+    labs(
+      title = main_daily_cases_hundy_14d_avrg_txt,
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    scale_y_continuous(
+      limits = c(0, maxy),
+      sec.axis = sec_axis(trans =  ~ . * 14, name =
+                            "14 Day Sum / 100,000 Population")
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  }
-  else {
-    plot(
-      wa_cases$dates,
-      wa_cases$daily_cases_per_hundy_avrg14d,
-      # plot(kc_cases$dates, wa_cases$daily_cases_per_hundy_avrg14d,
-      main = "Daily Cases per 100,000, 14day Average",
-      ylab = ylab_daily_cases_hundy_txt,
-      ylim = c(0, maxy),
-      xlab = "Dates",
-      type = "l",
-      col = "darkgreen",
-      xlim = as.Date(c(plot_start_date, plot_end_date))
     )
-    
-    lines(oregon_df$dates,
-          oregon_df$daily_cases_per_hundy_avrg14d,
-          col = "lightgreen")
-    lines(montana_df$dates,
-          montana_df$daily_cases_per_hundy_avrg14d,
-          col = "orange")
-    lines(california_df$dates,
-          california_df$daily_cases_per_hundy_avrg14d,
-          col = "brown")
-    legend(
-      "topleft",
-      legend = c(
-        "Pennsylvania",
-        "Maryland",
-        "Virginia",
-        washington_s_txt,
-        oregon_s_txt,
-        montana_s_txt,
-        california_s_txt
-      ),
-      col = c(
-        "darkblue",
-        "red",
-        "gold",
-        "darkgreen",
-        "lightgreen",
-        "orange",
-        "brown"
-      ),
-      lty = 1
-    )
-    mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
-    
-  }
+  print(p)
+  
   dev.off()
   file_to_bucket(filename)
   
@@ -2802,40 +2359,37 @@ doit <- function() {
   
   maxy = max(california_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
-  if (USE_GGPLOT) {
-    p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = or, colour = oregon_s_txt)) +
-      geom_line(aes(y = wa, colour = washington_s_txt)) +
-      geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
-      geom_line(aes(y = id, colour = idaho_s_txt)) +
-      geom_line(aes(y = ca, colour = california_s_txt)) +
-      scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen")) +
-      ylim(0, maxy) +
-      labs(
-        title = main_daily_cases_hundy_14d_avrg_txt,
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_daily_cases_hundy_txt
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = or, colour = oregon_s_txt)) +
+    geom_line(aes(y = wa, colour = washington_s_txt)) +
+    geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
+    geom_line(aes(y = id, colour = idaho_s_txt)) +
+    geom_line(aes(y = ca, colour = california_s_txt)) +
+    scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen")) +
+    ylim(0, maxy) +
+    labs(
+      title = main_daily_cases_hundy_14d_avrg_txt,
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  } # if use ggplot
+    )
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
@@ -2850,48 +2404,41 @@ doit <- function() {
   
   maxy = max(south_dakota_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
   
-  if (USE_GGPLOT) {
-    p <- ggplot(data = temp_df, aes(dates)) +
-      geom_line(aes(y = nebraska, colour = nebraska_s_txt)) +
-      geom_line(aes(y = south_dakota, colour = south_dakota_s_txt)) +
-      geom_line(aes(y = wyoming, colour = wyoming_s_txt)) +
-      geom_line(aes(y = colorado, colour = colorado_s_txt)) +
-      #      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
-      geom_line(aes(y = missouri, colour = missouri_s_txt)) +
-      geom_line(aes(y = iowa, colour = iowa_s_txt)) +
-      #     scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
-      ylim(0, maxy) +
-      labs(
-        title = paste("Really Nebraska?", main_daily_cases_hundy_14d_avrg_txt),
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
-        x = "Dates",
-        y = ylab_daily_cases_hundy_txt
-      ) +
-      theme_bw() +
-      theme(
-        panel.grid.minor = element_blank(),
-        #            panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5),
-        plot.caption = element_text(hjust = 0.5),
-        legend.title = element_blank(),
-        legend.position = c(0.35, 0.87),
-        legend.background = element_rect(
-          linetype = "solid",
-          size = 0.2,
-          colour = "black"
-        )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = nebraska, colour = nebraska_s_txt)) +
+    geom_line(aes(y = south_dakota, colour = south_dakota_s_txt)) +
+    geom_line(aes(y = wyoming, colour = wyoming_s_txt)) +
+    geom_line(aes(y = colorado, colour = colorado_s_txt)) +
+    #      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
+    geom_line(aes(y = missouri, colour = missouri_s_txt)) +
+    geom_line(aes(y = iowa, colour = iowa_s_txt)) +
+    #     scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
+    ylim(0, maxy) +
+    labs(
+      title = paste("Really Nebraska?", main_daily_cases_hundy_14d_avrg_txt),
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
       )
-    print(p)
-    
-  } # if use ggplot
+    )
+  print(p)
   
   dev.off()
   file_to_bucket(filename)
   
 }  #doit
-
-if (live_mode) {
-  dev.off()
-}
