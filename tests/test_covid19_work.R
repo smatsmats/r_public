@@ -25,6 +25,7 @@ test_that("pop_from_jhu", {
   expect_equal(dim(population), c(4195,12))
 })
 
+# really don't need all of these and they're likely to break as pops get adjusted
 test_that("get_pop", {
   expect_equal(get_pop("Maryland", "Baltimore City"), 5.9349, tolerance = 1)
   expect_equal(get_pop("Washington", "Island"), 0.85141, tolerance = 1)
@@ -44,17 +45,16 @@ test_that("get_pop", {
 })
 
 
-#  expect_equal(get_population(), 0)
-#  expect_is(get_population(), 0)
+#p <-  make_plot(
+#    df = wa_df,
+#    loc_txt = "bongo",
+#    cases_per_hundy = TRUE,
+#    cases = FALSE,
+#    daily_cases = FALSE)
+# how to test ggplot?
 
-#test_that("vectors", #{
-#  expect_equal(increment(c(0,1)), c(1,2))
-#})
-#
-#test_that("empty vector", {
-#  expect_equal(increment(c()), c())
-#})
-#
-#test_that("test NA", {
-#  expect_true(is.na(increment(NA)))
-#})
+usa_df <- build_all_states()
+test_that("pop_from_jhu", {
+  expect_true(dim(usa_df)[1] >= 512)
+})
+
