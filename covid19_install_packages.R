@@ -17,3 +17,8 @@ install.packages("stringr")
 
 #for testing
 install.packages("testthat")
+
+# mapping things
+install.packages("ggmap")
+install.packages("maps")
+install.packages("mapdata")
