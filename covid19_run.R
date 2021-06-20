@@ -1,4 +1,4 @@
-source("covid19_functions.R")
+source("./covid19_functions.R")
 
 # tmp goes in tmp, everything is tmp
 setwd("/tmp")
