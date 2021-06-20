@@ -1,4 +1,22 @@
-source("./covid19_functions.R")
+library("aws.s3")
+library("zoo")
+library("scales")
+
+#library("tidyverse")   # maybe we don't need the whole -verse
+# tidyverse things
+library("dplyr")
+library("lubridate")
+library("tidyr")
+library("ggplot2")
+library("stringr")
+
+# mapping packages
+library("ggmap")
+library("maps")
+library("mapdata")
+
+library("remotes")
+install_github("smatsmats/stevecovid19")
 
 # tmp goes in tmp, everything is tmp
 setwd("/tmp")
@@ -29,21 +47,21 @@ KEEP_FILES <- FALSE      # don't remove files after being pushed
 
 cat("Code loaded\n")
 
-ret <- onetime()
+ret <- stevecovid19::onetime()
 cat("OneTime loaded\n")
 
-ret <- vax_data()
+ret <- stevecovid19::vax_data()
 cat("Vax Data loaded\n")
 
-ret <- newday()
+ret <- stevecovid19::newday()
 cat("Newday loaded\n")
 
-population <- get_population()
+population <- stevecovid19::get_population()
 cat("Population loaded\n")
 
-ret <- doit()
+ret <- stevecovid19::doit()
 
-ret <- prep_wide_data()
-ret <- make_maps()
+ret <- stevecovid19::prep_wide_data()
+ret <- stevecovid19::make_maps()
 
 warnings()
