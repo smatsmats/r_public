@@ -28,7 +28,7 @@ setwd("/tmp")
 # Some flags
 ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
-VERBOSE <- FALSE
+VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
 live_mode <- FALSE
 
@@ -713,7 +713,7 @@ build_cols <- function(df, pop) {
 
 # selects a county
 get_admin2 <- function(state, county) {
-  cat("in get_admin2(", county, ")")
+  cat("in get_admin2(", county, ")\n")
   
   if (county == "Total") {
     county_cases_t <- as.data.frame(subset(usa_states,
@@ -1091,7 +1091,185 @@ get_admin0 <- function(country_in) {
   
 }
 
+make_county_string <- function(state, county) {
+  s <- tolower(paste(state, county))
+  s <- str_replace_all(tolower(s), " ", "_")
+  return(s)
+}
 
+build_all_counties <- function(state = "Washington",
+                               ref_county = "King",
+                               keep_dfs = FALSE,
+                               write_dfs = FALSE,
+                               plot_ref_and = FALSE,
+                               plot_daily_cases = FALSE,
+                               plot_state_cases_per_hundy = FALSE) {
+  if (plot_ref_and) {
+    ref_cases <- get_admin2(state = state, county = ref_county)
+    max_ref_y = max(ref_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+    ref_txt <-
+      paste(ref_county, " County, ", state, " (pop=", pop_format(ref_cases$pop[1]), ")", sep = "")
+  }
+  
+  washington <-
+    as.data.frame(subset(usa_confirmed, Province_State == "Washington"))
+
+  counties <- unique(sort(washington$Admin2))
+
+  loc_txt = "Eastern / Western Washington"
+
+  for (county in counties) {
+    if (str_detect(county, "Out of ") |
+        county == "" |
+        county == "unkown" |
+        county == "Unassigned") {
+      next
+    }
+
+    if (VERBOSE) {
+      cat(county, " County, ", state, " state")
+    }
+    new_df <- get_admin2(state = state, county = county)
+    
+    if (is.null(new_df)) {
+      next
+    }
+    
+    # if washington # add to east or west
+    if (state == "Washington") {
+      if (wa_counties[which(wa_counties$county == county),]$eastwest == "eastern") {
+        side = 'east'
+        if (exists("combined_east_df")) {
+          combined_east_df <- aggregate_dfs(combined_east_df, new_df)
+        }
+        else {
+          combined_east_df <- new_df
+        }
+      } else {
+        side = 'west'
+        if (exists("combined_west_df")) {
+          combined_west_df <- aggregate_dfs(combined_west_df, new_df)
+        }
+        else {
+          combined_west_df <- new_df
+        }
+      }
+      if (VERBOSE) {
+        cat(" which is ", side)
+      }
+    }
+
+    s_c = make_county_string(state, county)
+    file_base <- s_c
+    if (write_dfs) {
+      filename <- paste(file_base, "csv", sep = ".")
+      write.csv(new_df, filename)
+      file_to_bucket(filename)
+    }
+    
+    if (keep_dfs) {
+      st_string <- s_c
+      new_df_name <- paste(s_c, "_df", sep = "")
+      assign(new_df_name, new_df, envir = .GlobalEnv)
+      
+      # make the text name for graphs
+      txt_arg <- paste(s_c, "_txt", sep = "")
+      txt_value <- paste(county,
+                         " County, ",
+                         state,
+                         " State (pop=",
+                         pop_format(new_df$pop[1]),
+                         ")",
+                         sep = "")
+      assign(txt_arg, txt_value, envir = .GlobalEnv)
+    }
+    
+    # really no point if there isn"t anyone there
+    if (new_df[1, ]$pop == 0) {
+      next
+    }
+    
+    if (plot_daily_cases) {
+      ret <- make_plot(
+        df = new_df,
+        loc_txt = paste(county, " County, ", state),
+        daily_cases = TRUE,
+        file_base = file_base
+      )
+      if (!is.null(ret)) {
+        filename <- paste(file_base, "daily_cases.jpg", sep = "_")
+        file_to_bucket(filename)
+      }
+    }
+    
+    if (plot_state_cases_per_hundy) {
+      ret <- make_plot(
+        new_df,
+        loc_txt = paste(county, " County, ", state),
+        cases_per_hundy = TRUE,
+        file_base = file_base
+      )
+      if (!is.null(ret)) {
+        filename <- paste(file_base, "cases_per_hundy.jpg", sep = "_")
+        file_to_bucket(filename)
+      }
+    }
+    
+    if (plot_ref_and) {
+      # multiple counties 14 day
+      filename <- paste(ref_county, "_and_", county, ".jpg", sep = "")
+      filename <- tolower(filename)
+      filename <- str_replace_all(filename, " ", "_")
+      
+      jpeg(filename = filename,
+           width = plot_file_width,
+           height = plot_file_height)
+      
+      new_df$ref_cases <- ref_cases$cases
+      new_df$ref_daily_cases <- ref_cases$daily_cases
+      new_df$ref_daily_cases_per_hundy_avrg14d <-
+        ref_cases$daily_cases_per_hundy_avrg14d
+      s_txt <- txt_value
+      
+      p <- ggplot(data = new_df, aes(dates)) +
+        geom_line(aes(y = daily_cases_per_hundy_avrg14d,
+                      colour = s_txt)) +
+        geom_line(aes(y = ref_daily_cases_per_hundy_avrg14d,
+                      colour = ref_txt)) +
+        scale_color_manual(values = c("black", "darkgreen")) +
+        ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
+        labs(
+          title = "Daily Cases per 100,000, 14day Average",
+          subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+          x = "Dates",
+          y = ylab_daily_cases_hundy_txt
+        ) +
+        theme_bw() +
+        theme(
+          panel.grid.minor = element_blank(),
+          #            panel.grid.major = element_blank(),
+          panel.background = element_blank(),
+          plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          plot.caption = element_text(hjust = 0.5),
+          legend.title = element_blank(),
+          legend.position = c(0.35, 0.87),
+          legend.background = element_rect(
+            linetype = "solid",
+            size = 0.2,
+            colour = "black"
+          )
+        )
+      
+      print(p)
+      
+      dev.off()
+      file_to_bucket(filename)
+    }
+    
+  } # for all counties
+  
+}
 make_state_string <- function(state) {
   s <- tolower(state)
   s <- str_replace_all(tolower(s), " ", "_")
@@ -1116,17 +1294,18 @@ build_all_states <- function(combined = TRUE,
   }
   
   states <- unique(sort(usa_confirmed$Province_State))
-  
+
+
   for (state in states) {
     if (VERBOSE) {
       print(paste("state is", state))
     }
     new_df <- get_admin1(state)
-    
+
     if (is.null(new_df)) {
       next
     }
-    
+
     file_base <- str_replace_all(tolower(state), " ", "_")
     if (write_dfs) {
       filename <- paste(file_base, "csv", sep = ".")
@@ -1766,6 +1945,17 @@ if (live_mode) {
 }
 
 doit <- function() {
+  # build all washington counties
+  build_all_counties(
+    state = "Washington",
+    ref_county = "King",
+    keep_dfs = TRUE,
+    write_dfs = TRUE,
+    plot_state_cases_per_hundy = TRUE,
+    plot_ref_and = TRUE,
+    plot_daily_cases = TRUE
+  )
+
   if (USA_ALL) {
     usa_cases <- build_all_states(
       combined = TRUE,

@@ -37,3 +37,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# don't need to save generated html
+state_table.html
+wacounty_table.html

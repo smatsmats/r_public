@@ -57,44 +57,90 @@ states = ('alabama',
           'wisconsin',
           'wyoming')
 
-print("<style>")
-print("  table,")
-print("  th,")
-print("  td {")
-print("     padding: 10px;")
-print("     border: 1px solid black;")
-print("     border-collapse: collapse;")
-print("  }")
-print("</style>")
-print("<TABLE>")
-url_base = "https://s3-us-west-2.amazonaws.com/rbucket-matsmats/"
-for s in states:
-    t = s.title()
-    t = t.replace("_Of_", " of ")
-    t = t.replace("_", " ")
-    print("  <TR>")
+wa_counties = ('adams',
+               'asotin',
+               'benton',
+               'chelan',
+               'clallam',
+               'clark',
+               'columbia',
+               'cowlitz',
+               'douglas',
+               'ferry',
+               'franklin',
+               'garfield',
+               'grant',
+               'grays_harbor',
+               'island',
+               'jefferson',
+               'king',
+               'kitsap',
+               'kittitas',
+               'klickitat',
+               'lewis',
+               'lincoln',
+               'mason',
+               'okanogan',
+               'pacific',
+               'pend_oreille',
+               'pierce',
+               'san_juan',
+               'skagit',
+               'skamania',
+               'snohomish',
+               'spokane',
+               'stevens',
+               'thurston',
+               'wahkiakum',
+               'walla_walla',
+               'whatcom',
+               'whitman',
+               'yakima')
 
-    print("    <TD>")
-    print("      ", t)
-    print("    </TD>")
-    print("    <TD>")
-    print("      <A HREF=\"%s%s_cases_per_hundy.jpg\">Cases</A>" %
-          (url_base, s))
-    print("    </TD>")
-    print("    <TD>")
-    print("      <A HREF=\"%s%s_daily_cases.jpg\">Daily Cases</A>" %
-          (url_base, s))
-    print("    </TD>")
-    print("    <TD>")
-    print("      <A HREF=\"%s%s.jpg\">Compared to WA</A>" %
-          (url_base, s))
-    print("    </TD>")
-    print("    <TD>")
-    print("      <A HREF=\"%s%s.csv\">CSV</A>" %
-          (url_base, s))
-    print("    </TD>")
+def mktable(fh, thelist, prefix, reference, reference_p):
+    fh.write("<style>")
+    fh.write("  table,")
+    fh.write("  th,")
+    fh.write("  td {")
+    fh.write("     padding: 10px;")
+    fh.write("     border: 1px solid black;")
+    fh.write("     border-collapse: collapse;")
+    fh.write("  }")
+    fh.write("</style>\n")
+    fh.write("<TABLE>\n")
+    url_base = "https://s3-us-west-2.amazonaws.com/rbucket-matsmats/"
+    for s in thelist:
+        t = s.title()
+        t = t.replace("_Of_", " of ")
+        t = t.replace("_", " ")
+        fh.write("  <TR>")
+    
+        fh.write("    <TD>")
+        fh.write("      %s" % t)
+        fh.write("    </TD>")
+        fh.write("    <TD>")
+        fh.write("      <A HREF=\"%s%s%s_cases_per_hundy.jpg\">Cases</A>" %
+              (url_base, prefix, s))
+        fh.write("    </TD>")
+        fh.write("    <TD>")
+        fh.write("      <A HREF=\"%s%s%s_daily_cases.jpg\">Daily Cases</A>" %
+              (url_base, prefix, s))
+        fh.write("    </TD>")
+        fh.write("    <TD>")
+        fh.write("      <A HREF=\"%s%s_and_%s.jpg\">Compared to %s</A>" %
+              (url_base, reference, s, reference_p))
+        fh.write("    </TD>")
+        fh.write("    <TD>")
+        fh.write("      <A HREF=\"%s%s%s.csv\">CSV</A>" %
+              (url_base, prefix, s))
+        fh.write("    </TD>")
 
+        fh.write("  </TR>\n")
 
-    print("  </TR>")
+    fh.write("<TABLE>")
 
-print("<TABLE>")
+fh = open('state_table.html', 'w')
+mktable(fh, states, "", "wa", "WA")
+fh = open('wacounty_table.html', 'w')
+mktable(fh, wa_counties, "washington_", "king", "King")
+
