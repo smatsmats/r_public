@@ -1106,7 +1106,7 @@ build_all_counties <- function(state = "Washington",
                                plot_state_cases_per_hundy = FALSE) {
   if (plot_ref_and) {
     ref_cases <- get_admin2(state = state, county = ref_county)
-    max_ref_y = max(ref_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+    ref_maxy = max(ref_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
     ref_txt <-
       paste(ref_county, " County, ", state, " (pop=", pop_format(ref_cases$pop[1]), ")", sep = "")
   }
@@ -1231,13 +1231,17 @@ build_all_counties <- function(state = "Washington",
         ref_cases$daily_cases_per_hundy_avrg14d
       s_txt <- txt_value
       
+      # figure the maxy for ref_and plot
+      new_df_maxy <- max(new_df$daily_cases_per_hundy_avrg14d)
+      maxy <- ifelse(new_df_maxy > ref_maxy, new_df_maxy, ref_maxy)
+
       p <- ggplot(data = new_df, aes(dates)) +
         geom_line(aes(y = daily_cases_per_hundy_avrg14d,
                       colour = s_txt)) +
         geom_line(aes(y = ref_daily_cases_per_hundy_avrg14d,
                       colour = ref_txt)) +
         scale_color_manual(values = c("black", "darkgreen")) +
-        ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
+        ylim(0, maxy) +
         labs(
           title = "Daily Cases per 100,000, 14day Average",
           subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
@@ -1804,6 +1808,13 @@ make_maps <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
   
+  nb_df <- subset(states, region == "nebraska")
+  nb_base <-
+    ggplot(data = nb_df,
+           mapping = aes(x = long, y = lat, group = group)) +
+    coord_fixed(1.3) +
+    geom_polygon(color = "black", fill = "gray")
+  
   counties <- map_data("county")
   # make a combined key that matches our data
   counties$Combined_Key <- paste(
@@ -1823,6 +1834,9 @@ make_maps <- function() {
     subset(counties_merged, region == "washington")
   # use key = Combined_Key.x
   
+  nb_counties_merged <-
+    subset(counties_merged, region == "nebraska")
+
   make_a_map_from_base(
     df = wa_counties_merged,
     key = "Combined_Key.x",
@@ -1847,6 +1861,32 @@ make_maps <- function() {
     base = wa_base,
     title = paste("Washington", main_14day_trend_txt),
     filebase = "map_wa_trend"
+  )
+  
+  make_a_map_from_base(
+    df = nb_counties_merged,
+    key = "Combined_Key.x",
+    var = "avrg14_per_hundy",
+    base = nb_base,
+    lowpoint = 0,
+    border1_color = "grey",
+    border1_df = nb_counties_merged,
+    border2_df = nb_df,
+    title = paste("Nebraska",
+                  main_daily_cases_hundy_14d_avrg_txt),
+    filebase = "map_nb_14avrg"
+  )
+  make_a_map_from_base(
+    df = nb_counties_merged,
+    var = "trend",
+    key = "Combined_Key.x",
+    midpoint = 0,
+    border1_color = "grey",
+    border1_df = nb_counties_merged,
+    border2_df = nb_df,
+    base = nb_base,
+    title = paste("Nebraska", main_14day_trend_txt),
+    filebase = "map_nb_trend"
   )
   
   
@@ -1908,6 +1948,12 @@ make_maps <- function() {
            )) +
     geom_polygon(color = "black") +
     coord_fixed(1.3)
+  
+  # fucking Nebraska puts all of there cases in 'Unassigned'
+  counties_merged[counties_merged$region %in% "nebraska", ]$avrg14_per_hundy <-
+    NA
+  counties_merged[counties_merged$region %in% "nebraska", ]$trend <-
+    NA
   
   make_a_map_from_base(
     df = counties_merged,
