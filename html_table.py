@@ -97,7 +97,8 @@ wa_counties = ('adams',
                'whitman',
                'yakima')
 
-def mktable(fh, thelist, prefix, reference, reference_p):
+def mktable(fname, thelist, prefix, reference, reference_p):
+    fh = open(fname, 'w')
     fh.write("<style>")
     fh.write("  table,")
     fh.write("  th,")
@@ -138,9 +139,10 @@ def mktable(fh, thelist, prefix, reference, reference_p):
         fh.write("  </TR>\n")
 
     fh.write("<TABLE>")
+    print("Wrote {}".format(fname))
 
-fh = open('state_table.html', 'w')
-mktable(fh, states, "", "wa", "WA")
-fh = open('wacounty_table.html', 'w')
-mktable(fh, wa_counties, "washington_", "king", "King")
+fname = 'state_table.html'
+mktable(fname, states, "", "wa", "WA")
+fname = 'wacounty_table.html'
+mktable(fname, wa_counties, "washington_", "king", "King")
 
