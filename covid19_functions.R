@@ -2119,6 +2119,8 @@ doit <- function() {
     all = all_cases$cases_per_hundy,
     mad = mad_cases$cases_per_hundy,
     sji = sji_cases$cases_per_hundy,
+    sno = sno_cases$cases_per_hundy,
+    ska = ska_cases$cases_per_hundy,
     jeff = jeff_cases$cases_per_hundy,
     kit = kit_cases$cases_per_hundy,
     b_co = b_co_cases$cases_per_hundy,
@@ -2130,13 +2132,15 @@ doit <- function() {
     geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
     geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
     geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
-    geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
+#    geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
     geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
     geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
     geom_line(aes(y = kit, colour = kit_txt), linetype = "solid") +
     geom_line(aes(y = jeff, colour = jeff_txt), linetype = "solid") +
     geom_line(aes(y = sji, colour = sji_txt), linetype = "solid") +
-    geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
+    geom_line(aes(y = ska, colour = ska_txt), linetype = "solid") +
+    geom_line(aes(y = sno, colour = sno_txt), linetype = "solid") +
+#    geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
     geom_line(aes(y = all, colour = all_txt), linetype = "solid") +
     geom_line(aes(y = mad, colour = mad_txt), linetype = "solid") +
     geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
@@ -2150,11 +2154,13 @@ doit <- function() {
         "green",
         "grey",
         "lightblue",
-        "orange",
         "purple",
+#        "turquoise",
+        "gold",
+        "chocolate3",
         "red",
         "darkgreen",
-        "yellow"
+#        "yellow"
       )
     ) +
     #    scale_linetype_manual( values = c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")) +
@@ -2174,7 +2180,7 @@ doit <- function() {
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
       plot.caption = element_text(hjust = 0.5),
-      #        legend.title = element_blank(),
+      legend.title = element_blank(),
       legend.position = c(0.35, 0.80),
       legend.background = element_rect(
         linetype = "solid",
