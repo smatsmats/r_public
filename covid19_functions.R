@@ -2522,13 +2522,13 @@ doit <- function() {
   
   ##############################################################################
   # MISC graphs
-  # multiple counties 14 day
-  filename = "misc.jpg"
+  # THE SOUTH
+  filename = "thesouth.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
        height = plot_file_height)
   
-  maxy = max(montana_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  maxy = max(louisiana_df$daily_cases_per_hundy_avrg14d+100, na.rm = TRUE)
   
   temp_df <- data.frame(
     dates = washington_df$dates,
@@ -2547,8 +2547,65 @@ doit <- function() {
     colorado = colorado_df$daily_cases_per_hundy_avrg14d,
     kansas = kansas_df$daily_cases_per_hundy_avrg14d,
     missouri = missouri_df$daily_cases_per_hundy_avrg14d,
-    iowa = iowa_df$daily_cases_per_hundy_avrg14d
+    iowa = iowa_df$daily_cases_per_hundy_avrg14d,
+    florida = florida_df$daily_cases_per_hundy_avrg14d,
+    louisiana = louisiana_df$daily_cases_per_hundy_avrg14d,
+    alabama = alabama_df$daily_cases_per_hundy_avrg14d,
+    arkansas = arkansas_df$daily_cases_per_hundy_avrg14d,
+    georgia = georgia_df$daily_cases_per_hundy_avrg14d,
+    texas = texas_df$daily_cases_per_hundy_avrg14d
   )
+  p <- ggplot(data = temp_df, aes(dates)) +
+    geom_line(aes(y = florida, colour = florida_s_txt)) +
+    geom_line(aes(y = louisiana, colour = louisiana_s_txt)) +
+    geom_line(aes(y = alabama, colour = alabama_s_txt)) +
+    geom_line(aes(y = arkansas, colour = arkansas_s_txt)) +
+    geom_line(aes(y = georgia, colour = georgia_s_txt)) +
+    geom_line(aes(y = texas, colour = texas_s_txt)) +
+#    scale_color_manual(values = c("black", "orange", "lightgreen", "red", "darkgreen")) +
+#    scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
+    labs(
+      title = paste("The South", main_daily_cases_hundy_14d_avrg_txt),
+      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    scale_y_continuous(
+      limits = c(0, maxy),
+      sec.axis = sec_axis(trans =  ~ . * 14, name =
+                            "14 Day Sum / 100,000 Population")
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
+      )
+    )
+  print(p)
+  
+  dev.off()
+  file_to_bucket(filename)
+  
+  ##############################################################################
+  # MISC graphs
+  # multiple counties 14 day
+  filename = "misc.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  
+  maxy = max(montana_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  
   p <- ggplot(data = temp_df, aes(dates)) +
     geom_line(aes(y = or, colour = oregon_s_txt)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
