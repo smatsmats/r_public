@@ -2528,7 +2528,9 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
   
-  maxy = max(louisiana_df$daily_cases_per_hundy_avrg14d+100, na.rm = TRUE)
+  bigger = ifelse(louisiana_df$daily_cases_per_hundy_avrg14d > florida_df$daily_cases_per_hundy_avrg14d,
+                  louisiana_df$daily_cases_per_hundy_avrg14d, florida_df$daily_cases_per_hundy_avrg14d)
+  maxy = max(bigger, na.rm = TRUE)
   
   temp_df <- data.frame(
     dates = washington_df$dates,
