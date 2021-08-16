@@ -22,7 +22,8 @@ test_that("init", {
 
 population <- get_population()
 test_that("pop_from_jhu", {
-  expect_equal(dim(population), c(4195,12))
+  expect_true(dim(population)[1] >= 4196)
+  expect_true(dim(population)[2] >= 12)
 })
 
 # really don't need all of these and they're likely to break as pops get adjusted
