@@ -450,7 +450,7 @@ make_plot <- function(df,
       geom_line(colour = "purple", na.rm = FALSE) +
       labs(
         title = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
         x = "Dates",
         y = ylab_cases_hundy_txt
       ) +
@@ -483,7 +483,7 @@ make_plot <- function(df,
       geom_line(colour = "purple", na.rm = FALSE) +
       labs(
         title = paste(loc_txt, cumulative_c19_cases_txt),
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
         x = "Dates",
         y = ylab_cases_txt
       ) +
@@ -522,7 +522,7 @@ make_plot <- function(df,
                                     "Daily" = "mediumpurple1")) +
       labs(
         title = paste(loc_txt, main_daily_cases_hundy_txt),
-        subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y"))
+        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
       ) +
       scale_x_date(name = "Dates") +
       scale_y_continuous(
@@ -575,7 +575,7 @@ multi_make_plot <- function(df,
     #   ylim(0,max(df$daily_cases)) +
     labs(
       title = paste(loc_txt, daily_c19_cases_txt),
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_txt
     ) +
@@ -1244,7 +1244,7 @@ build_all_counties <- function(state = "Washington",
         ylim(0, maxy) +
         labs(
           title = "Daily Cases per 100,000, 14day Average",
-          subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+          subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
           x = "Dates",
           y = ylab_daily_cases_hundy_txt
         ) +
@@ -1397,7 +1397,7 @@ build_all_states <- function(combined = TRUE,
         ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
         labs(
           title = "Daily Cases per 100,000, 14day Average",
-          subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+          subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
           x = "Dates",
           y = ylab_daily_cases_hundy_txt
         ) +
@@ -1487,7 +1487,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     col = "gold",
     xlim = as.Date(c(plot_start_date, plot_end_date))
   )
-  mtext(paste("created", format(Sys.Date(), "%m/%d/%Y")), side = 3)
+  mtext(paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")), side = 3)
   legend(
     "topleft",
     legend = c("Eastern", "Western"),
@@ -1529,7 +1529,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     scale_color_manual(values = c("gold", "green")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -1709,7 +1709,7 @@ make_a_map_from_base <- function(df,
     theme_bw() +
     ditch_the_axes +
     labs(title = title,
-         subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y"))) +
+        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))) +
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
@@ -2213,7 +2213,7 @@ doit <- function() {
     #      scale_linetype_manual( values = linetypes ) +
     ylim(0, max(usa_cases$cases_per_hundy, na.rm = TRUE)) +
     labs(title = main_cases_hundy_txt,
-         subtitle = paste("created",format(Sys.Date(), "%m/%d/%Y")),
+         subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
          x = "Dates",
          y = ylab_cases_hundy_txt) +
     theme_bw() +
@@ -2261,7 +2261,7 @@ doit <- function() {
     scale_color_manual(values = c("purple", "darkred")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2308,7 +2308,7 @@ doit <- function() {
     ylim(0, max(apple_cup$wh_cases.cases_per_hundy)) +
     labs(
       title = paste(cumulative_c19_cases_txt, hundy_txt),
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_cases_hundy_txt
     ) +
@@ -2389,7 +2389,7 @@ doit <- function() {
     ylim(0, maxy) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2430,7 +2430,7 @@ doit <- function() {
     ylim(0, maxy) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2494,7 +2494,7 @@ doit <- function() {
     ) +
     labs(
       title = main_daily_cases_hundy_14d_sum_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2537,6 +2537,7 @@ doit <- function() {
     or = oregon_df$daily_cases_per_hundy_avrg14d,
     mi = michigan_df$daily_cases_per_hundy_avrg14d,
     wa = washington_df$daily_cases_per_hundy_avrg14d,
+    washington = washington_df$daily_cases_per_hundy_avrg14d,
     ca = california_df$daily_cases_per_hundy_avrg14d,
     md = maryland_df$daily_cases_per_hundy_avrg14d,
     id = idaho_df$daily_cases_per_hundy_avrg14d,
@@ -2564,11 +2565,12 @@ doit <- function() {
     geom_line(aes(y = arkansas, colour = arkansas_s_txt)) +
     geom_line(aes(y = georgia, colour = georgia_s_txt)) +
     geom_line(aes(y = texas, colour = texas_s_txt)) +
+    geom_line(aes(y = washington, colour = washington_s_txt)) +
 #    scale_color_manual(values = c("black", "orange", "lightgreen", "red", "darkgreen")) +
 #    scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
     labs(
       title = paste("The South", main_daily_cases_hundy_14d_avrg_txt),
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2619,7 +2621,7 @@ doit <- function() {
     scale_linetype_manual(values = c("solid", "solid", "solid", "dashed", "solid")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2670,7 +2672,7 @@ doit <- function() {
     ylim(0, maxy) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -2713,11 +2715,12 @@ doit <- function() {
     #      geom_line(aes(y = kansas, colour = kansas_s_txt)) +
     geom_line(aes(y = missouri, colour = missouri_s_txt)) +
     geom_line(aes(y = iowa, colour = iowa_s_txt)) +
+    geom_line(aes(y = washington, colour = washington_s_txt)) +
     #     scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen", "black", "red")) +
     ylim(0, maxy) +
     labs(
       title = paste("Really Nebraska?", main_daily_cases_hundy_14d_avrg_txt),
-      subtitle = paste("created", format(Sys.Date(), "%m/%d/%Y")),
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
