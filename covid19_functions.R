@@ -15,6 +15,12 @@ library("stringr")
 library("ggmap")
 library("maps")
 library("mapdata")
+library("usmap")
+
+# for map transformations
+library("rgeos")
+library("rgdal")
+library("maptools")
 
 # design decisions
 # - don't combine plotting and making df"s
@@ -1779,16 +1785,23 @@ make_a_map_from_base <- function(df,
   }
   print(mymap)
   
-  if (!is.null(filename)) {
+  if (!is.null(filebase)) {
     dev.off()
+    file_to_bucket(filename)
   }
-  file_to_bucket(filename)
   
 }
 
 
 make_maps <- function() {
+
+  states_usm <- usa_usm <- usmap::us_map()
+  counties_usm <- usmap::us_map(regions = "counties")
+  
   usa <- map_data("usa")
+  usa_albersea <- usmap_transform(usa)
+  usa_albersea <- rename(usa_albersea, y = lat.1)
+  usa_albersea <- rename(usa_albersea, x = long.1)
   states <- map_data("state")
   
   # add Province_State to make merging easier
@@ -1796,6 +1809,9 @@ make_maps <- function() {
   states_merged <-
     inner_join(states, us_states_wide, by = "Province_State")
   # use key = "Province_State"
+  
+  states_merged_usm <-
+    inner_join(states_usm, us_states_wide, by = c("full" = "Province_State"))
   
   vax_states_merged <-
     inner_join(states, vax_us_wide, by = "Province_State")
@@ -1807,7 +1823,7 @@ make_maps <- function() {
            mapping = aes(x = long, y = lat, group = group)) +
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
-  
+
   nb_df <- subset(states, region == "nebraska")
   nb_base <-
     ggplot(data = nb_df,
@@ -1815,6 +1831,7 @@ make_maps <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
   
+  # counties map_data
   counties <- map_data("county")
   # make a combined key that matches our data
   counties$Combined_Key <- paste(
@@ -1837,6 +1854,31 @@ make_maps <- function() {
   nb_counties_merged <-
     subset(counties_merged, region == "nebraska")
 
+  # counties usm  *************
+  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
+  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
+  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Borough", "")
+  
+    
+  # make a combined key that matches our data
+  counties_usm$Combined_Key <- paste(
+    str_to_title(counties_usm$county_sans_county),
+    ", ",
+    str_to_title(counties_usm$full),
+    ", US",
+    sep = ""
+  )
+  counties_usm <- mash_combined_key(counties_usm)
+  
+  counties_merged_usm <-
+    inner_join(counties_usm, us_counties_wide, by = "combinedkeylc")
+  # use key = Combined_Key.x
+  
+  wa_counties_merged_usm <-
+    subset(counties_merged_usm, full == "Washington")
+  
+  
+  
   make_a_map_from_base(
     df = wa_counties_merged,
     key = "Combined_Key.x",
@@ -1900,27 +1942,38 @@ make_maps <- function() {
     geom_polygon(color = "white") +
     coord_fixed(1.3)
   
+  states_base_usm <-
+    ggplot(data = states_usm,
+           mapping = aes(
+             x = x,
+             y = y,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "white") +
+    coord_fixed(1.3)
+  
   make_a_map_from_base(
-    df = states_merged,
+    df = states_merged_usm,
     var = "avrg14_per_hundy",
-    key = "Province_State",
+    key = "full",
     lowpoint = 0,
-    base = states_base,
+    base = states_base_usm,
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "map_usa_14avrg"
   )
+  
   make_a_map_from_base(
-    df = states_merged,
+    df = states_merged_usm,
     var = "trend",
-    key = "Province_State",
+    key = "full",
     midpoint = 0,
-    base = states_base,
+    base = states_base_usm,
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     title = paste("USA", main_14day_trend_txt, "States"),
     filebase = "map_usa_trend"
   )
@@ -1949,36 +2002,52 @@ make_maps <- function() {
     geom_polygon(color = "black") +
     coord_fixed(1.3)
   
+  # us county maps
+  counties_base_usm <-
+    ggplot(data = counties_usm,
+           mapping = aes(
+             x = x,
+             y = y,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "black") +
+    coord_fixed(1.3)
+  
   # fucking Nebraska puts all of there cases in 'Unassigned'
   counties_merged[counties_merged$region %in% "nebraska", ]$avrg14_per_hundy <-
     NA
   counties_merged[counties_merged$region %in% "nebraska", ]$trend <-
     NA
+
+#  # fucking Nebraska puts all of there cases in 'Unassigned'
+  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$avrg14_per_hundy <-    NA
+  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$trend <-    NA
+  
   
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties_merged_usm,
     var = "avrg14_per_hundy",
     key = "Combined_Key.x",
     lowpoint = 0,
-    base = counties_base,
+    base = counties_base_usm,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
     #    trans = "log10",
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_14avrg_c"
   )
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties_merged_usm,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
-    base = counties_base,
+    base = counties_base_usm,
     title = paste("USA", main_14day_trend_txt, "Counties"),
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_trend_c"
   )

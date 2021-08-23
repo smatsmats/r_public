@@ -22,3 +22,9 @@ install.packages("testthat")
 install.packages("ggmap")
 install.packages("maps")
 install.packages("mapdata")
+install.packages("usmap")
+
+# map transformations
+install.packages("rgeos")
+install.packages("rgdal")
+install.packages("maptools")
