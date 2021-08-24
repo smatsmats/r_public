@@ -46,5 +46,3 @@ jobs:
         run: |
           ./run_tests.sh 
       - run: echo "🍏 This job's status is ${{ job.status }}."
-
-

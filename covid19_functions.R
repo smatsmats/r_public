@@ -1788,10 +1788,16 @@ make_a_map_from_base <- function(df,
 
 get_fifty_states <- function() {
   
-  https://www.arcgis.com/home/item.html?id=f7f805eb65eb4ab787a0a3e1116ca7e5
+  states_21basic_url <- "https://drive.google.com/uc?export=download&id=1EAxKTl7Rg32y7FLazPOF5oC41LdiWKcC"
+  states_21basic_zip <- tempfile()
+  download.file(states_21basic_url, states_21basic_zip)
   
-  loc <- "/Users/willey/Desktop/states_21basic"
-  map <- readOGR(dsn="/Users/willey/Desktop/states_21basic", layer="states")
+  loc <- file.path(tempdir(), "stats_dat")
+  unzip(system.file("extdata", "states_21basic.zip", package = "fiftystater"),
+        exdir = loc)
+  
+  map <- readOGR(unz(states_21basic_zip), layer = "states")
+  unlink(states_21basic_zip)
   
   fifty_states_sp <- readOGR(dsn = loc, layer = "states", verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
   
