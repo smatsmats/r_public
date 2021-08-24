@@ -26,6 +26,10 @@ jobs:
           sudo apt-get install --no-install-recommends -y \
           apt-utils && 
           sudo apt-get install --no-install-recommends -y \
+          libgeos++-dev \
+          libgeos-3.8.0 \
+          libgeos-c1v5 \
+          libgeos-dev \
           git \
           curl \
           libssl-dev \
