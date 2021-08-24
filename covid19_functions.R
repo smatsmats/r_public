@@ -1786,6 +1786,51 @@ make_a_map_from_base <- function(df,
   
 }
 
+get_fifty_states <- function() {
+  
+  https://www.arcgis.com/home/item.html?id=f7f805eb65eb4ab787a0a3e1116ca7e5
+  
+  loc <- "/Users/willey/Desktop/states_21basic"
+  map <- readOGR(dsn="/Users/willey/Desktop/states_21basic", layer="states")
+  
+  fifty_states_sp <- readOGR(dsn = loc, layer = "states", verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
+  
+  alaska <- fifty_states_sp[fifty_states_sp$STATE_NAME == "Alaska", ] %>%
+    transform_state(-35, 2.5, c(-2400000, -2100000))
+  proj4string(alaska) <- proj4string(fifty_states_sp)
+  
+  hawaii <- fifty_states_sp[fifty_states_sp$STATE_NAME == "Hawaii", ] %>%
+    transform_state(-35, .75, c(-1170000,-2363000))
+  proj4string(hawaii) <- proj4string(fifty_states_sp)
+  
+  dc <- fifty_states_sp[fifty_states_sp$STATE_NAME == "District of Columbia", ] %>%
+    transform_state(0, .1, c(2600000,-700000))
+  proj4string(dc) <- proj4string(fifty_states_sp)
+  
+  
+  fifty_states <-
+    fifty_states_sp[!fifty_states_sp$STATE_NAME %in% c("Alaska","Hawaii"), ] %>%
+    rbind(alaska) %>%
+    rbind(hawaii) %>%
+    rbind(dc) %>%
+    
+    spTransform(CRS("+init=epsg:4326")) %>%
+    fortify(region = "STATE_NAME") %>%
+    mutate(id = tolower(id))
+  
+  base50 <-
+    ggplot(data = fifty_states,
+           mapping = aes(
+             x = long,
+             y = lat,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "black") +
+    coord_fixed(1.3)
+  
+  print(base50)
+  
+}
 
 make_maps <- function() {
   usa <- map_data("usa")
