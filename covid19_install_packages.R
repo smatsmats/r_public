@@ -26,5 +26,7 @@ install.packages("usmap")
 
 # map transformations
 install.packages("rgeos")
+# for ubuntu: apt-get install libgdal26
+# for ubuntu: sudo apt-get install libgdal-dev
 install.packages("rgdal")
 install.packages("maptools")
