@@ -2020,9 +2020,9 @@ make_maps <- function() {
     var = "vax_pct",
     key = "Province_State",
     lowpoint = 0,
-    base = states_base,
+    base = states50_base,
     border1_color = "grey",
-    border1_df = states,
+    border1_df = states50,
     border2_df = usa,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "vax1"
