@@ -30,6 +30,8 @@ jobs:
           libgeos-3.8.0 \
           libgeos-c1v5 \
           libgeos-dev \
+          libgdal26 \
+          libgdal-dev \
           git \
           curl \
           libssl-dev \

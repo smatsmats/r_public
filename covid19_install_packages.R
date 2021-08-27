@@ -24,9 +24,13 @@ install.packages("maps")
 install.packages("mapdata")
 
 # map transformations
-# for ubuntu: sudo apt install libgeos++-dev libgeos-3.8.0 libgeos-c1v5 libgeos-dev libgeos-doc libgdal-doc
+# for ubuntu: sudo apt-get install libgeos++-dev libgeos-3.8.0 libgeos-c1v5 libgeos-dev
 install.packages("rgeos")
+# for ubuntu: sudo apt-get install libgdal26 libgdal-dev
 install.packages("rgdal")
 install.packages("maptools")
 install.packages("mapproj")
 install.packages("gpclib")
+
+# this needs to be explicitly updated
+install.packages("Rcpp")

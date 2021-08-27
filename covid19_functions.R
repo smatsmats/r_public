@@ -1612,6 +1612,14 @@ mash_combined_key <- function(df) {
   return(df)
 }
 
+# makes a consistent clean key for matching
+mash_province_state_key <- function(df) {
+  df$provincestatelc <- str_to_lower(df$Province_State)
+  df$provincestatelc <- str_replace_all(df$provincestatelc, "[.]", "")
+  df$provincestatelc <- str_replace_all(df$provincestatelc, "[ ]", "")
+  return(df)
+}
+
 prep_wide_data <- function() {
   # if we only wonted WA
   #  us_counties_wide <- filter(usa_confirmed, Province_State == "Washington")
@@ -1646,6 +1654,7 @@ prep_wide_data <- function() {
                           uid_iso_fips_lookup_states[, c("Population", "Province_State")],
                           by = "Province_State")
 
+  us_states_wide <- mash_province_state_key(us_states_wide)
   us_states_wide <<- summarize_wide_data(us_states_wide, latest)
 }
 
@@ -1857,20 +1866,26 @@ get_fifty_states <- function() {
 
 }
 
-states50 <- get_fifty_states()
-dim(states50)
-
 make_maps <- function() {
 
   usa <- map_data("usa")
   states <- map_data("state")
 
-#  states50 <- get_fifty_states()
+  states50 <- get_fifty_states()
 
   # add Province_State to make merging easier
+  # I guess keep this around for the borders
   states$Province_State = str_to_title(states$region)
+  states <- mash_province_state_key(states)
   states_merged <-
-    inner_join(states, us_states_wide, by = "Province_State")
+    inner_join(states, us_states_wide, by = "provincestatelc")
+  # use key = "Province_State"
+
+  # add Province_State to make merging easier
+  states50$Province_State = str_to_title(states50$id)
+  states50 <- mash_province_state_key(states50)
+  states50_merged <-
+    inner_join(states50, us_states_wide, by = "provincestatelc")
   # use key = "Province_State"
 
   vax_states_merged <-
@@ -1965,9 +1980,8 @@ make_maps <- function() {
     filebase = "map_nb_trend"
   )
 
-
-  states_base <-
-    ggplot(data = states,
+  states50_base <-
+    ggplot(data = states50,
            mapping = aes(
              x = long,
              y = lat,
@@ -1977,25 +1991,25 @@ make_maps <- function() {
     coord_fixed(1.3)
 
   make_a_map_from_base(
-    df = states_merged,
+    df = states50_merged,
     var = "avrg14_per_hundy",
-    key = "Province_State",
+    key = "provincestatelc",
     lowpoint = 0,
-    base = states_base,
+    base = states50_base,
     border1_color = "grey",
-    border1_df = states,
+    border1_df = states50,
     border2_df = usa,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "map_usa_14avrg"
   )
   make_a_map_from_base(
-    df = states_merged,
+    df = states50_merged,
     var = "trend",
-    key = "Province_State",
+    key = "provincestatelc",
     midpoint = 0,
-    base = states_base,
+    base = states50_base,
     border1_color = "grey",
-    border1_df = states,
+    border1_df = states50,
     border2_df = usa,
     title = paste("USA", main_14day_trend_txt, "States"),
     filebase = "map_usa_trend"
