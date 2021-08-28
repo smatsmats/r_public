@@ -2075,12 +2075,27 @@ make_maps <- function() {
     geom_polygon(color = "black") +
     coord_fixed(1.3)
 
+  # us county maps
+  counties_base_usm <-
+    ggplot(data = counties_usm,
+           mapping = aes(
+             x = x,
+             y = y,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "black") +
+    coord_fixed(1.3)
+  
   # fucking Nebraska puts all of there cases in 'Unassigned'
   counties_merged[counties_merged$region %in% "nebraska", ]$avrg14_per_hundy <-
     NA
   counties_merged[counties_merged$region %in% "nebraska", ]$trend <-
     NA
 
+  #  # fucking Nebraska puts all of there cases in 'Unassigned'
+  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$avrg14_per_hundy <-    NA
+  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$trend <-    NA
+  
   make_a_map_from_base(
     df = counties_merged_usm,
     var = "avrg14_per_hundy",
