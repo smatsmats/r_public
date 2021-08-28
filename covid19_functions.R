@@ -15,6 +15,12 @@ library("stringr")
 library("ggmap")
 library("maps")
 library("mapdata")
+library("usmap")
+
+# for map transformations
+library("rgeos")
+library("rgdal")
+library("maptools")
 
 # for map transformations
 library("rgeos")
@@ -1794,12 +1800,10 @@ make_a_map_from_base <- function(df,
       labs(caption = caption)
   }
   print(mymap)
-
-  if (!is.null(filename)) {
+  if (!is.null(filebase)) {
     dev.off()
+    file_to_bucket(filename)
   }
-  file_to_bucket(filename)
-
 }
 
 
@@ -1868,7 +1872,13 @@ get_fifty_states <- function() {
 
 make_maps <- function() {
 
+  states_usm <- usa_usm <- usmap::us_map()
+  counties_usm <- usmap::us_map(regions = "counties")
+  
   usa <- map_data("usa")
+  usa_albersea <- usmap_transform(usa)
+  usa_albersea <- rename(usa_albersea, y = lat.1)
+  usa_albersea <- rename(usa_albersea, x = long.1)
   states <- map_data("state")
 
   states50 <- get_fifty_states()
@@ -1928,6 +1938,31 @@ make_maps <- function() {
   nb_counties_merged <-
     subset(counties_merged, region == "nebraska")
 
+  # counties usm  *************
+  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
+  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
+  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Borough", "")
+  
+    
+  # make a combined key that matches our data
+  counties_usm$Combined_Key <- paste(
+    str_to_title(counties_usm$county_sans_county),
+    ", ",
+    str_to_title(counties_usm$full),
+    ", US",
+    sep = ""
+  )
+  counties_usm <- mash_combined_key(counties_usm)
+  
+  counties_merged_usm <-
+    inner_join(counties_usm, us_counties_wide, by = "combinedkeylc")
+  # use key = Combined_Key.x
+  
+  wa_counties_merged_usm <-
+    subset(counties_merged_usm, full == "Washington")
+  
+  
+  
   make_a_map_from_base(
     df = wa_counties_merged,
     key = "Combined_Key.x",
@@ -2002,6 +2037,7 @@ make_maps <- function() {
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "map_usa_14avrg"
   )
+  
   make_a_map_from_base(
     df = states50_merged,
     var = "trend",
@@ -2046,29 +2082,29 @@ make_maps <- function() {
     NA
 
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties_merged_usm,
     var = "avrg14_per_hundy",
     key = "Combined_Key.x",
     lowpoint = 0,
-    base = counties_base,
+    base = counties_base_usm,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
     #    trans = "log10",
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_14avrg_c"
   )
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties_merged_usm,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
-    base = counties_base,
+    base = counties_base_usm,
     title = paste("USA", main_14day_trend_txt, "Counties"),
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_usm,
+    border2_df = usa_albersea,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_trend_c"
   )

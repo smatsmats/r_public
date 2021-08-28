@@ -24,8 +24,6 @@ filebase = "mymap1.jpg"
 
 usmap::usmap_crs()@projargs
 
-
-
 download.file("https://dl.dropbox.com/s/wl0z5rpygtowqbf/states_21basic.zip?dl=1", 
               "usmapdata.zip", 
               method = "curl")
@@ -97,4 +95,3 @@ print(base50)
 
 library("gpclib")
 gpclibPermit()
-
