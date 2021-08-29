@@ -1815,7 +1815,9 @@ transform_state <- function(object, rot, scale, shift){
     elide(shift = shift)
 }
 
-load_state_shapefile <- function(loc, layer) {
+load_state_shapefile <- function(loc, layer,
+                                 include_nmi = FALSE,
+                                 include_as = FALSE) {
   
   sf_in <- readOGR(dsn = loc, layer = layer, verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
   
@@ -1839,34 +1841,47 @@ load_state_shapefile <- function(loc, layer) {
   proj4string(pr) <- proj4string(sf_in)
   
   guam <- sf_in[sf_in$NAME == "Guam", ] %>%
-    transform_state(0, .5, c(-2200000,-1300000))
+    transform_state(0, .25, c(-2200000,-1300000))
   proj4string(guam) <- proj4string(sf_in)
   
-  as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
-    transform_state(0, 1, c(5500000,2200000))
-  proj4string(as) <- proj4string(sf_in)
-  
   usvi <- sf_in[sf_in$NAME == "United States Virgin Islands", ] %>%
-    transform_state(0, .5, c(2800000,-1800000))
+    transform_state(0, .25, c(2800000,-1800000))
   proj4string(usvi) <- proj4string(sf_in)
   
-  nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
-    transform_state(0, .5, c(3000000,-300000))
-  proj4string(nmi) <- proj4string(sf_in)
+  if ( include_as ) {
+    as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
+      transform_state(0, 1, c(5500000,2200000))
+    proj4string(as) <- proj4string(sf_in)
+  }
   
-  thing_almost <-
+  if ( include_nmi ) {
+    nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
+      transform_state(0, .5, c(3000000,-300000))
+    proj4string(nmi) <- proj4string(sf_in)
+  }
+  
+  bound_df <-
     sf_in[!sf_in$NAME %in% c("Alaska","Hawaii", "Guam", "Commonwealth of the Northern Mariana Islands", "United States Virgin Islands", "Puerto Rico", "American Samoa"), ] %>%
     rbind(alaska) %>%
     rbind(hawaii) %>%
     rbind(dc) %>%
     rbind(pr) %>%
-    rbind(as) %>%
-    rbind(nmi) %>%
     rbind(usvi) %>%
-    rbind(guam) %>%
+    rbind(guam)
+    
+  if ( include_nmi ) {
+    bound_df <- bound_df %>% rbind(nmi)
+  }
+  if ( include_as ) {
+    bound_df <- bound_df %>% rbind(as)
+  }
+  
+  thing_almost <- bound_df %>%
     spTransform(CRS("+init=epsg:4326")) %>%
     fortify(region = "NAME") %>%
     mutate(id = tolower(id))
+  
+  return(thing_almost)
   
   thing <-
     ggplot(data = thing_almost,
@@ -1882,11 +1897,31 @@ load_state_shapefile <- function(loc, layer) {
 }
 
 
-new_50 <- function() {
+new_50 <- function(keep_dl_files = FALSE) {
 
-  loc <- "/Users/willey/Desktop/cb_2020_us_all_5m/cb_2020_us_state_5m/cb_2020_us_state_5m.shp"
+  # from https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+  # 1 : 500,000 (national)  https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_500k.zip
+  # 1 : 5,000,000 (national)   "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_5m.zip"
+  # https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip
+  # 1 : 20,000,000 (national)    https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_20m.zip
+  
+  states_zip_url <- "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip"
+  states_zip <- tempfile()
+  download.file(states_zip_url, states_zip)
+
+  unzipped_dir <- tempdir()
+  print(paste("Shapefile dir", unzipped_dir))
+  unzip(states_zip, overwrite = TRUE, exdir = unzipped_dir)
+  
+  shp_loc <- file.path(unzipped_dir, "cb_2020_us_state_5m.shp")
+
+#  loc <- "/Users/willey/Desktop/cb_2020_us_all_5m/cb_2020_us_state_5m/cb_2020_us_state_5m.shp"
   layer <- "cb_2020_us_state_5m"
-  states50new <- load_state_shapefile(loc, layer())
+  states50new <- load_state_shapefile(shp_loc, layer)
+  if ( keep_dl_files == FALSE ) {
+    unlink(unzipped_dir)
+    unlink(states_zip)
+  }
   return(states50new)
 }
 
@@ -1957,7 +1992,8 @@ make_maps <- function() {
   usa_albersea <- rename(usa_albersea, x = long.1)
   states <- map_data("state")
 
-  states50 <- get_fifty_states()
+#  states50 <- get_fifty_states()
+  states50 <- new_50()
 
   # add Province_State to make merging easier
   # I guess keep this around for the borders
@@ -2963,3 +2999,4 @@ doit <- function() {
   file_to_bucket(filename)
 
 }  #doit
+
