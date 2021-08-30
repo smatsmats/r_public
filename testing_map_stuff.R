@@ -72,15 +72,35 @@ load_state_shapefile <- function(loc, layer) {
   proj4string(dc) <- proj4string(sf_in)
 
   pr <- sf_in[sf_in$NAME == "Puerto Rico", ] %>%
-    transform_state(20, .5, c(-1000000,-3000))
+    transform_state(0, .5, c(2500000,-1300000))
   proj4string(pr) <- proj4string(sf_in)
   
+  guam <- sf_in[sf_in$NAME == "Guam", ] %>%
+    transform_state(0, .5, c(-2200000,-1300000))
+  proj4string(guam) <- proj4string(sf_in)
+  
+  as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
+    transform_state(0, 1, c(5500000,2200000))
+  proj4string(as) <- proj4string(sf_in)
+  
+  usvi <- sf_in[sf_in$NAME == "United States Virgin Islands", ] %>%
+    transform_state(0, .5, c(2800000,-1800000))
+  proj4string(usvi) <- proj4string(sf_in)
+  
+  nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
+    transform_state(0, .5, c(3000000,-300000))
+  proj4string(nmi) <- proj4string(sf_in)
+  
   thing_almost <-
- #   sf_in[!sf_in$NAME %in% c("Alaska","Hawaii", "Guam", "Commonwealth of the Northern Mariana Islands", "United States Virgin Islands", "Puerto Rico", "American Samoa"), ] %>%
+    sf_in[!sf_in$NAME %in% c("Alaska","Hawaii", "Guam", "Commonwealth of the Northern Mariana Islands", "United States Virgin Islands", "Puerto Rico", "American Samoa"), ] %>%
     rbind(alaska) %>%
     rbind(hawaii) %>%
     rbind(dc) %>%
     rbind(pr) %>%
+    rbind(as) %>%
+    rbind(nmi) %>%
+    rbind(usvi) %>%
+    rbind(guam) %>%
     spTransform(CRS("+init=epsg:4326")) %>%
     fortify(region = "NAME") %>%
     mutate(id = tolower(id))

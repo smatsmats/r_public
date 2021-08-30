@@ -1681,6 +1681,7 @@ make_a_map_from_base <- function(df,
                                  border2_color = NULL,
                                  border2_df = NULL,
                                  caption = NULL,
+                                 add_insert_boxes = FALSE,
                                  filebase = NULL) {
   # prepare to drop the axes and ticks but leave the guides and legends
   # We can't just throw down a theme_nothing()!
@@ -1799,6 +1800,9 @@ make_a_map_from_base <- function(df,
     mymap <- mymap +
       labs(caption = caption)
   }
+  if ( add_insert_boxes ) {
+    mymap <- insert_boxes(mymap)
+  }
   print(mymap)
   if (!is.null(filebase)) {
     dev.off()
@@ -1815,135 +1819,187 @@ transform_state <- function(object, rot, scale, shift){
     elide(shift = shift)
 }
 
-load_state_shapefile <- function(loc, layer) {
+insert_boxes <- function(p) {
+  lat <- c(38,38,33,33,33,33)
+  long <- c(-73,-68,-68,-73,-73,-73)
+  name <- c("dc","dc","dc","dc","dc","dc")
+  label <- c("", "DC", "", "", "", "")
+  dc_box <- tibble(lat, long, name, label)
+  
+  lat <- c(33,33,28.5,28.5,28.5,28.5)
+  long <- c(-75,-66,-66,-75,-75,-75)
+  name <- c("pr","pr","pr","pr","pr","pr")
+  label <- c("", "PR", "", "", "", "")
+  pr_box <- tibble(lat, long, name, label)
+  
+  lat <- c(28.5,28.5,23.5,23.5,23.5,23.5)
+  long <- c(-73,-68,-68,-73,-73,-73)
+  name <- c("usvi","usvi","usvi","usvi","usvi","usvi")
+  label <- c("", "US VI", "", "", "", "")
+  usvi_box <- tibble(lat, long, name, label)
+
+  lat <- c(33,33,29,29,29,29)
+  long <- c(-125,-120,-120,-125,-125,-125)
+  name <- c("guam","guam","guam","guam","guam","guam")
+  label <- c("", "Guam", "", "", "", "")
+  guam_box <- tibble(lat, long, name, label)
+
+  lat <- c(31,31,22,22,29,29)
+  long <- c(-120,-112,-112,-125, -125,-120)
+  name <- c("ak","ak","ak","ak","ak","ak")
+  label <- c("", "AK", "", "", "", "")
+  ak_box <- tibble(lat, long, name, label)
+
+  lat <- c(30,25,22,22,22,22)
+  long <- c(-112,-99,-99,-112,-112,-112)
+  name <- c("hi","hi","hi","hi","hi","hi")
+  label <- c("", "HI", "", "", "", "")
+  hi_box <- tibble(lat, long, name, label)
+  
+  boxes <- dc_box %>% 
+    rbind(pr_box) %>%
+    rbind(guam_box) %>%
+    rbind(hi_box) %>%
+    rbind(ak_box) %>%
+    rbind(usvi_box)
+  
+  insert_boxes <- p +
+    geom_polygon(data = boxes,
+                 color = "black", 
+                 aes(x = long, y = lat, 
+                      group = factor(name)),
+                 fill = NA) +
+    geom_text(data = boxes,
+              aes(label = label, 
+                  x = long, 
+                  y = lat, 
+                  group = factor(name)),
+              nudge_x = -1.5,
+              nudge_y = -.5) +
+    coord_fixed(1.3)
+  return(insert_boxes)
+  
+  print(insert_boxes)
+}
+    
+
+# a lot of manual tweaking to move non-conus states and territories 
+# into insert positions
+load_state_shapefile <- function(loc, layer,
+                                 include_nmi = FALSE,
+                                 include_as = FALSE) {
   
   sf_in <- readOGR(dsn = loc, layer = layer, verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
-  
-  #  data <- sf_in$NAME
-  #  data
   
   alaska <- sf_in[sf_in$NAME == "Alaska", ] %>%
     transform_state(-35, 2.5, c(-2400000, -2100000))
   proj4string(alaska) <- proj4string(sf_in)
   
   hawaii <- sf_in[sf_in$NAME == "Hawaii", ] %>%
-    transform_state(-35, .75, c(-1170000,-2363000))
+    transform_state(-35, .75, c(-1000000,-2373000))
   proj4string(hawaii) <- proj4string(sf_in)
   
   dc <- sf_in[sf_in$NAME == "District of Columbia", ] %>%
-    transform_state(0, .1, c(2600000,-700000))
+    transform_state(0, .1, c(2525000,-700000))
   proj4string(dc) <- proj4string(sf_in)
   
   pr <- sf_in[sf_in$NAME == "Puerto Rico", ] %>%
-    transform_state(0, .5, c(2500000,-1300000))
+    transform_state(0, .5, c(2500000,-1250000))
   proj4string(pr) <- proj4string(sf_in)
   
   guam <- sf_in[sf_in$NAME == "Guam", ] %>%
-    transform_state(0, .5, c(-2200000,-1300000))
+    transform_state(0, .25, c(-2200000,-1400000))
   proj4string(guam) <- proj4string(sf_in)
   
-  as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
-    transform_state(0, 1, c(5500000,2200000))
-  proj4string(as) <- proj4string(sf_in)
-  
   usvi <- sf_in[sf_in$NAME == "United States Virgin Islands", ] %>%
-    transform_state(0, .5, c(2800000,-1800000))
+    transform_state(0, .25, c(2800000,-1800000))
   proj4string(usvi) <- proj4string(sf_in)
+
   
-  nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
-    transform_state(0, .5, c(3000000,-300000))
-  proj4string(nmi) <- proj4string(sf_in)
+  if ( include_as ) {
+    as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
+      transform_state(0, 1, c(5500000,2200000))
+    proj4string(as) <- proj4string(sf_in)
+  }
   
-  thing_almost <-
+  if ( include_nmi ) {
+    nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
+      transform_state(0, .5, c(3000000,-300000))
+    proj4string(nmi) <- proj4string(sf_in)
+  }
+  
+  bound_df <-
     sf_in[!sf_in$NAME %in% c("Alaska","Hawaii", "Guam", "Commonwealth of the Northern Mariana Islands", "United States Virgin Islands", "Puerto Rico", "American Samoa"), ] %>%
     rbind(alaska) %>%
     rbind(hawaii) %>%
     rbind(dc) %>%
     rbind(pr) %>%
-    rbind(as) %>%
-    rbind(nmi) %>%
     rbind(usvi) %>%
-    rbind(guam) %>%
+    rbind(guam)
+    
+  if ( include_nmi ) {
+    bound_df <- bound_df %>% rbind(nmi)
+  }
+  if ( include_as ) {
+    bound_df <- bound_df %>% rbind(as)
+  }
+  
+  thing_almost <- bound_df %>%
     spTransform(CRS("+init=epsg:4326")) %>%
     fortify(region = "NAME") %>%
     mutate(id = tolower(id))
   
+  return(thing_almost)
+  
+}
+
+test_thing <- function() {
+  mys <- load_state_shapefile(shp_loc, layer)  
   thing <-
-    ggplot(data = thing_almost,
+    ggplot(data = mys, 
            mapping = aes(
              x = long,
              y = lat,
              group = factor(group)
            )) +
     geom_polygon(color = "black") +
-    coord_fixed(1.3)
+    coord_fixed(1.3) 
+  thing <- insert_boxes(thing)
   
+  
+  jpeg(filename = "test.jpg",
+       width = plot_file_width,
+       height = plot_file_height)
   print(thing)
+  dev.off()
 }
 
+get_states_polygons <- function(keep_dl_files = FALSE) {
 
-new_50 <- function() {
+  # from https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+  # 1 : 500,000 (national)  https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_500k.zip
+  # 1 : 5,000,000 (national)   "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_5m.zip"
+  # https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip
+  # 1 : 20,000,000 (national)    https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_20m.zip
+  
+  states_zip_url <- "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip"
+  states_zip <- tempfile()
+  download.file(states_zip_url, states_zip)
 
-  loc <- "/Users/willey/Desktop/cb_2020_us_all_5m/cb_2020_us_state_5m/cb_2020_us_state_5m.shp"
+  unzipped_dir <- tempdir()
+  print(paste("Shapefile dir", unzipped_dir))
+  unzip(states_zip, overwrite = TRUE, exdir = unzipped_dir)
+  
+  shp_loc <- file.path(unzipped_dir, "cb_2020_us_state_5m.shp")
+
+#  loc <- "/Users/willey/Desktop/cb_2020_us_all_5m/cb_2020_us_state_5m/cb_2020_us_state_5m.shp"
   layer <- "cb_2020_us_state_5m"
-  states50new <- load_state_shapefile(loc, layer())
+  states50new <- load_state_shapefile(shp_loc, layer)
+  if ( keep_dl_files == FALSE ) {
+    unlink(unzipped_dir)
+    unlink(states_zip)
+  }
   return(states50new)
-}
-
-
-
-get_fifty_states <- function() {
-
-  states_21basic_url <- "https://drive.google.com/uc?export=download&id=1EAxKTl7Rg32y7FLazPOF5oC41LdiWKcC"
-  states_21basic_zip <- tempfile()
-  download.file(states_21basic_url, states_21basic_zip)
-
-  loc <- file.path(tempdir(), "stats_dat")
-  unzip(states_21basic_zip, overwrite = TRUE, exdir = loc)
-
-  fifty_states_sp <- readOGR(loc, layer = "states") %>% spTransform(CRS("+init=epsg:2163"))
-  unlink(states_21basic_zip)
-  unlink(loc)
-
-  alaska <- fifty_states_sp[fifty_states_sp$STATE_NAME == "Alaska", ] %>%
-    transform_state(-35, 2.5, c(-2400000, -2100000))
-  proj4string(alaska) <- proj4string(fifty_states_sp)
-
-  hawaii <- fifty_states_sp[fifty_states_sp$STATE_NAME == "Hawaii", ] %>%
-    transform_state(-35, .75, c(-1170000,-2363000))
-  proj4string(hawaii) <- proj4string(fifty_states_sp)
-
-  dc <- fifty_states_sp[fifty_states_sp$STATE_NAME == "District of Columbia", ] %>%
-    transform_state(0, .1, c(2600000,-700000))
-  proj4string(dc) <- proj4string(fifty_states_sp)
-
-
-  fifty_states <-
-    fifty_states_sp[!fifty_states_sp$STATE_NAME %in% c("Alaska","Hawaii"), ] %>%
-    rbind(alaska) %>%
-    rbind(hawaii) %>%
-    rbind(dc) %>%
-
-    spTransform(CRS("+init=epsg:4326")) %>%
-    fortify(region = "STATE_NAME") %>%
-    mutate(id = tolower(id))
-
-#  print(dim(fifty_states))
-  return(fifty_states)
-  print("after return?")
-
- # base50 <-
-#    ggplot(data = fifty_states,
-#           mapping = aes(
-#             x = long,
-#             y = lat,
-#             group = factor(group)
-#           )) +
-#    geom_polygon(color = "black") +
-#    coord_fixed(1.3)
-
- # print(base50)
-
 }
 
 make_maps <- function() {
@@ -1957,7 +2013,8 @@ make_maps <- function() {
   usa_albersea <- rename(usa_albersea, x = long.1)
   states <- map_data("state")
 
-  states50 <- get_fifty_states()
+  states50 <- get_states_polygons()
+  states50[states50$id == "united states virgin islands", ]$id <- 'virgin islands'
 
   # add Province_State to make merging easier
   # I guess keep this around for the borders
@@ -2111,6 +2168,7 @@ make_maps <- function() {
     border1_df = states50,
     border2_df = usa,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
+    add_insert_boxes = TRUE,
     filebase = "map_usa_14avrg"
   )
   
@@ -2124,6 +2182,7 @@ make_maps <- function() {
     border1_df = states50,
     border2_df = usa,
     title = paste("USA", main_14day_trend_txt, "States"),
+    add_insert_boxes = TRUE,
     filebase = "map_usa_trend"
   )
 
@@ -2136,6 +2195,7 @@ make_maps <- function() {
     border1_color = "grey",
     border1_df = states50,
     border2_df = usa,
+    add_insert_boxes = TRUE,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "vax1"
   )
