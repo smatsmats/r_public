@@ -1634,14 +1634,14 @@ prep_wide_data <- function() {
   # before we add any columns get the last date column
   # then subtract one for the prior day since "today" might not be fully reported.
   latest <- dim(us_counties_wide)[2] - 1
+  us_counties_wide <- mash_combined_key(us_counties_wide)
+  uid_iso_fips_lookup_m <- mash_combined_key(uid_iso_fips_lookup)
   us_counties_wide <- merge(us_counties_wide,
-                            uid_iso_fips_lookup[, c("Population", "Combined_Key")],
-                            by = "Combined_Key",
+                            uid_iso_fips_lookup_m[, c("Population", "Combined_Key", "combinedkeylc")],
+                            by = "combinedkeylc",
                             all.x = TRUE)
 
   us_counties_wide <- summarize_wide_data(us_counties_wide, latest)
-
-  us_counties_wide <- mash_combined_key(us_counties_wide)
 
   # put in global environment
   us_counties_wide <<- us_counties_wide
