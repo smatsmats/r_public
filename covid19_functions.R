@@ -15,7 +15,6 @@ library("stringr")
 library("ggmap")
 library("maps")
 library("mapdata")
-library("usmap")
 
 # for map transformations
 library("rgeos")
@@ -1825,13 +1824,13 @@ insert_boxes <- function(p) {
   name <- c("dc","dc","dc","dc","dc","dc")
   label <- c("", "DC", "", "", "", "")
   dc_box <- tibble(lat, long, name, label)
-  
+
   lat <- c(33,33,28.5,28.5,28.5,28.5)
   long <- c(-75,-66,-66,-75,-75,-75)
   name <- c("pr","pr","pr","pr","pr","pr")
   label <- c("", "PR", "", "", "", "")
   pr_box <- tibble(lat, long, name, label)
-  
+
   lat <- c(28.5,28.5,23.5,23.5,23.5,23.5)
   long <- c(-73,-68,-68,-73,-73,-73)
   name <- c("usvi","usvi","usvi","usvi","usvi","usvi")
@@ -1855,118 +1854,144 @@ insert_boxes <- function(p) {
   name <- c("hi","hi","hi","hi","hi","hi")
   label <- c("", "HI", "", "", "", "")
   hi_box <- tibble(lat, long, name, label)
-  
-  boxes <- dc_box %>% 
+
+  boxes <- dc_box %>%
     rbind(pr_box) %>%
     rbind(guam_box) %>%
     rbind(hi_box) %>%
     rbind(ak_box) %>%
     rbind(usvi_box)
-  
+
   insert_boxes <- p +
     geom_polygon(data = boxes,
-                 color = "black", 
-                 aes(x = long, y = lat, 
+                 color = "black",
+                 aes(x = long, y = lat,
                       group = factor(name)),
                  fill = NA) +
     geom_text(data = boxes,
-              aes(label = label, 
-                  x = long, 
-                  y = lat, 
+              aes(label = label,
+                  x = long,
+                  y = lat,
                   group = factor(name)),
               nudge_x = -1.5,
               nudge_y = -.5) +
     coord_fixed(1.3)
   return(insert_boxes)
-  
+
   print(insert_boxes)
 }
-    
 
-# a lot of manual tweaking to move non-conus states and territories 
+
+# a lot of manual tweaking to move non-conus states and territories
 # into insert positions
-load_state_shapefile <- function(loc, layer,
+load_cb_shapefile <- function(loc,
+                                 layer,
+                                 doing_state = TRUE,
                                  include_nmi = FALSE,
                                  include_as = FALSE) {
-  
+
   sf_in <- readOGR(dsn = loc, layer = layer, verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
-  
-  alaska <- sf_in[sf_in$NAME == "Alaska", ] %>%
+  if ( doing_state ) {
+    sf_in$STATE_NAME <- sf_in$NAME
+    sf_in$Combined_Key <- tolower(sf_in$NAME)
+  }
+  else {
+    sf_in$Combined_Key <- paste(
+      str_to_title(sf_in$NAME),
+      ", ",
+      str_to_title(sf_in$STATE_NAME),
+      ", US",
+      sep = ""
+    )
+  }
+
+  alaska <- sf_in[sf_in$STATE_NAME == "Alaska", ] %>%
     transform_state(-35, 2.5, c(-2400000, -2100000))
   proj4string(alaska) <- proj4string(sf_in)
-  
-  hawaii <- sf_in[sf_in$NAME == "Hawaii", ] %>%
+
+  hawaii <- sf_in[sf_in$STATE_NAME == "Hawaii", ] %>%
     transform_state(-35, .75, c(-1000000,-2373000))
   proj4string(hawaii) <- proj4string(sf_in)
-  
-  dc <- sf_in[sf_in$NAME == "District of Columbia", ] %>%
+
+  dc <- sf_in[sf_in$STATE_NAME == "District of Columbia", ] %>%
     transform_state(0, .1, c(2525000,-700000))
   proj4string(dc) <- proj4string(sf_in)
-  
-  pr <- sf_in[sf_in$NAME == "Puerto Rico", ] %>%
+
+  pr <- sf_in[sf_in$STATE_NAME == "Puerto Rico", ] %>%
     transform_state(0, .5, c(2500000,-1250000))
   proj4string(pr) <- proj4string(sf_in)
-  
-  guam <- sf_in[sf_in$NAME == "Guam", ] %>%
+
+  guam <- sf_in[sf_in$STATE_NAME == "Guam", ] %>%
     transform_state(0, .25, c(-2200000,-1400000))
   proj4string(guam) <- proj4string(sf_in)
-  
-  usvi <- sf_in[sf_in$NAME == "United States Virgin Islands", ] %>%
+
+  usvi <- sf_in[sf_in$STATE_NAME == "United States Virgin Islands", ] %>%
     transform_state(0, .25, c(2800000,-1800000))
   proj4string(usvi) <- proj4string(sf_in)
 
-  
+
   if ( include_as ) {
-    as <- sf_in[sf_in$NAME == "American Samoa", ] %>%
+    as <- sf_in[sf_in$STATE_NAME == "American Samoa", ] %>%
       transform_state(0, 1, c(5500000,2200000))
     proj4string(as) <- proj4string(sf_in)
   }
-  
+
   if ( include_nmi ) {
-    nmi <- sf_in[sf_in$NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
+    nmi <- sf_in[sf_in$STATE_NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
       transform_state(0, .5, c(3000000,-300000))
     proj4string(nmi) <- proj4string(sf_in)
   }
-  
+
   bound_df <-
-    sf_in[!sf_in$NAME %in% c("Alaska","Hawaii", "Guam", "Commonwealth of the Northern Mariana Islands", "United States Virgin Islands", "Puerto Rico", "American Samoa"), ] %>%
+    sf_in[!sf_in$STATE_NAME %in% c("Alaska",
+                                   "Hawaii",
+                                   "Guam",
+                                   "Commonwealth of the Northern Mariana Islands",
+                                   "United States Virgin Islands",
+                                   "Puerto Rico",
+                                   "American Samoa"), ] %>%
     rbind(alaska) %>%
     rbind(hawaii) %>%
     rbind(dc) %>%
     rbind(pr) %>%
     rbind(usvi) %>%
     rbind(guam)
-    
+
   if ( include_nmi ) {
     bound_df <- bound_df %>% rbind(nmi)
   }
   if ( include_as ) {
     bound_df <- bound_df %>% rbind(as)
   }
-  
-  thing_almost <- bound_df %>%
-    spTransform(CRS("+init=epsg:4326")) %>%
-    fortify(region = "NAME") %>%
-    mutate(id = tolower(id))
-  
-  return(thing_almost)
-  
+
+
+  polys <- spTransform(bound_df, CRS("+init=epsg:4326"))
+  fortified <- fortify(polys, region = "Combined_Key") %>% mutate(id = tolower(id))
+  # merge back stuff
+#  merged_back <- merge(fortified, as.data.frame(transformed), by.x="id", by.y=0)
+ # polys_df <- merge(fortify(polys, region = "Combined_Key"), as.data.frame(polys), by=0)
+
+  #    fortify(state_name = "STATE_NAME", region = "NAME") %>%
+
+  return(fortified)
+
 }
 
 test_thing <- function() {
-  mys <- load_state_shapefile(shp_loc, layer)  
+  mys <- get_county_polygons()
+  #  mys <- load_county_shapefile(shp_loc, layer)
   thing <-
-    ggplot(data = mys, 
+    ggplot(data = mys,
            mapping = aes(
              x = long,
              y = lat,
              group = factor(group)
            )) +
     geom_polygon(color = "black") +
-    coord_fixed(1.3) 
+    coord_fixed(1.3)
   thing <- insert_boxes(thing)
-  
-  
+
+
   jpeg(filename = "test.jpg",
        width = plot_file_width,
        height = plot_file_height)
@@ -1974,47 +1999,91 @@ test_thing <- function() {
   dev.off()
 }
 
-get_states_polygons <- function(keep_dl_files = FALSE) {
+dl_unzip <- function(zip_url) {
+  zip <- tempfile()
+  download.file(zip_url, zip)
+  unzipped_dir <- tempdir()
+  unzip(zip, overwrite = TRUE, exdir = unzipped_dir)
+  if (!KEEP_FILES) {
+    unlink(zip)
+  }
+  return(unzipped_dir)
+}
 
+get_states_polygons <- function() {
   # from https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
   # 1 : 500,000 (national)  https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_500k.zip
   # 1 : 5,000,000 (national)   "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_5m.zip"
   # https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip
   # 1 : 20,000,000 (national)    https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_all_20m.zip
-  
-  states_zip_url <- "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip"
-  states_zip <- tempfile()
-  download.file(states_zip_url, states_zip)
 
-  unzipped_dir <- tempdir()
-  print(paste("Shapefile dir", unzipped_dir))
-  unzip(states_zip, overwrite = TRUE, exdir = unzipped_dir)
-  
-  shp_loc <- file.path(unzipped_dir, "cb_2020_us_state_5m.shp")
+  zip_url <-
+    "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_state_5m.zip"
+  unzipped_dir <- dl_unzip(zip_url)
 
-#  loc <- "/Users/willey/Desktop/cb_2020_us_all_5m/cb_2020_us_state_5m/cb_2020_us_state_5m.shp"
+  loc <- file.path(unzipped_dir, "cb_2020_us_state_5m.shp")
+  print(paste("Shapefile:", loc))
+
   layer <- "cb_2020_us_state_5m"
-  states50new <- load_state_shapefile(shp_loc, layer)
-  if ( keep_dl_files == FALSE ) {
+  states50new <- load_cb_shapefile(loc, layer)
+  if (!KEEP_FILES) {
     unlink(unzipped_dir)
-    unlink(states_zip)
   }
   return(states50new)
+
 }
+
+get_county_polygons <- function() {
+  # from https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html
+  # 1 : 5,000,000 (national)   https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_5m.zip
+
+  zip_url <-
+    "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_5m.zip"
+  unzipped_dir <- dl_unzip(zip_url)
+
+  loc <- file.path(unzipped_dir, "cb_2020_us_county_5m.shp")
+  print(paste("Shapefile:", loc))
+
+  layer <- "cb_2020_us_county_5m"
+  counties50new <-
+    load_cb_shapefile(loc, layer, doing_state = FALSE)
+  if (!KEEP_FILES) {
+    unlink(unzipped_dir)
+  }
+  return(counties50new)
+}
+
 
 make_maps <- function() {
 
-  states_usm <- usa_usm <- usmap::us_map()
-  counties_usm <- usmap::us_map(regions = "counties")
-  
+  # first get usa outline
   usa <- map_data("usa")
-  usa_albersea <- usmap_transform(usa)
-  usa_albersea <- rename(usa_albersea, y = lat.1)
-  usa_albersea <- rename(usa_albersea, x = long.1)
-  states <- map_data("state")
+#  usa_albersea <- usmap_transform(usa)
+#  usa_albersea <- rename(usa_albersea, y = lat.1)
+#  usa_albersea <- rename(usa_albersea, x = long.1)
 
+  # states outlines
+  states <- map_data("state")
   states50 <- get_states_polygons()
   states50[states50$id == "united states virgin islands", ]$id <- 'virgin islands'
+
+  # county outlines
+  counties <- get_county_polygons()
+  counties$Combined_Key <- counties$id
+  counties <- mash_combined_key(counties)
+
+  # frankly the simple maps look better when blown-up
+  # so we have both
+  counties_md <- map_data("county")
+  # make a combined key that matches our data
+  counties_md$Combined_Key <- paste(
+      str_to_title(counties_md$subregion),
+      ", ",
+      str_to_title(counties_md$region),
+      ", US",
+      sep = ""
+    )
+  counties_md <- mash_combined_key(counties_md)
 
   # add Province_State to make merging easier
   # I guess keep this around for the borders
@@ -2030,6 +2099,23 @@ make_maps <- function() {
   states50_merged <-
     inner_join(states50, us_states_wide, by = "provincestatelc")
   # use key = "Province_State"
+
+  counties_merged <-
+    inner_join(counties, us_counties_wide, by = "combinedkeylc")
+
+  counties_md_merged <-
+    inner_join(counties_md, us_counties_wide, by = "combinedkeylc")
+
+  wa_counties_md_merged <-
+    subset(counties_md_merged, Province_State == "Washington")
+
+  nb_counties_md_merged <-
+    subset(counties_md_merged, Province_State == "Nebraska")
+
+# counties usm  *************
+#  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
+#  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
+#  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Borough", "")
 
   vax_states_merged <-
     inner_join(states, vax_us_wide, by = "Province_State")
@@ -2049,73 +2135,27 @@ make_maps <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
 
-  counties <- map_data("county")
-  # make a combined key that matches our data
-  counties$Combined_Key <- paste(
-    str_to_title(counties$subregion),
-    ", ",
-    str_to_title(counties$region),
-    ", US",
-    sep = ""
-  )
-  counties <- mash_combined_key(counties)
 
-  counties_merged <-
-    inner_join(counties, us_counties_wide, by = "combinedkeylc")
-  # use key = Combined_Key.x
-
-  wa_counties_merged <-
-    subset(counties_merged, region == "washington")
-  # use key = Combined_Key.x
-
-  nb_counties_merged <-
-    subset(counties_merged, region == "nebraska")
-
-  # counties usm  *************
-  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
-  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
-  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Borough", "")
-  
-    
-  # make a combined key that matches our data
-  counties_usm$Combined_Key <- paste(
-    str_to_title(counties_usm$county_sans_county),
-    ", ",
-    str_to_title(counties_usm$full),
-    ", US",
-    sep = ""
-  )
-  counties_usm <- mash_combined_key(counties_usm)
-  
-  counties_merged_usm <-
-    inner_join(counties_usm, us_counties_wide, by = "combinedkeylc")
-  # use key = Combined_Key.x
-  
-  wa_counties_merged_usm <-
-    subset(counties_merged_usm, full == "Washington")
-  
-  
-  
   make_a_map_from_base(
-    df = wa_counties_merged,
+    df = wa_counties_md_merged,
     key = "Combined_Key.x",
     var = "avrg14_per_hundy",
     base = wa_base,
     lowpoint = 0,
     border1_color = "grey",
-    border1_df = wa_counties_merged,
+    border1_df = wa_counties_md_merged,
     border2_df = wa_df,
     title = paste("Washington",
                   main_daily_cases_hundy_14d_avrg_txt),
     filebase = "map_wa_14avrg"
   )
   make_a_map_from_base(
-    df = wa_counties_merged,
+    df = wa_counties_md_merged,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
     border1_color = "grey",
-    border1_df = wa_counties_merged,
+    border1_df = wa_counties_md_merged,
     border2_df = wa_df,
     base = wa_base,
     title = paste("Washington", main_14day_trend_txt),
@@ -2123,25 +2163,25 @@ make_maps <- function() {
   )
 
   make_a_map_from_base(
-    df = nb_counties_merged,
+    df = nb_counties_md_merged,
     key = "Combined_Key.x",
     var = "avrg14_per_hundy",
     base = nb_base,
     lowpoint = 0,
     border1_color = "grey",
-    border1_df = nb_counties_merged,
+    border1_df = nb_counties_md_merged,
     border2_df = nb_df,
     title = paste("Nebraska",
                   main_daily_cases_hundy_14d_avrg_txt),
     filebase = "map_nb_14avrg"
   )
   make_a_map_from_base(
-    df = nb_counties_merged,
+    df = nb_counties_md_merged,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
     border1_color = "grey",
-    border1_df = nb_counties_merged,
+    border1_df = nb_counties_md_merged,
     border2_df = nb_df,
     base = nb_base,
     title = paste("Nebraska", main_14day_trend_txt),
@@ -2171,7 +2211,7 @@ make_maps <- function() {
     add_insert_boxes = TRUE,
     filebase = "map_usa_14avrg"
   )
-  
+
   make_a_map_from_base(
     df = states50_merged,
     var = "trend",
@@ -2211,51 +2251,38 @@ make_maps <- function() {
     geom_polygon(color = "black") +
     coord_fixed(1.3)
 
-  # us county maps
-  counties_base_usm <-
-    ggplot(data = counties_usm,
-           mapping = aes(
-             x = x,
-             y = y,
-             group = factor(group)
-           )) +
-    geom_polygon(color = "black") +
-    coord_fixed(1.3)
-  
   # fucking Nebraska puts all of there cases in 'Unassigned'
-  counties_merged[counties_merged$region %in% "nebraska", ]$avrg14_per_hundy <-
+  counties_merged[counties_merged$Province_State %in% "Nebraska", ]$avrg14_per_hundy <-
     NA
-  counties_merged[counties_merged$region %in% "nebraska", ]$trend <-
+  counties_merged[counties_merged$Province_State %in% "Nebraska", ]$trend <-
     NA
 
-  #  # fucking Nebraska puts all of there cases in 'Unassigned'
-  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$avrg14_per_hundy <-    NA
-  counties_merged_usm[counties_merged_usm$full %in% "Nebraska", ]$trend <-    NA
-  
   make_a_map_from_base(
-    df = counties_merged_usm,
+    df = counties_merged,
     var = "avrg14_per_hundy",
     key = "Combined_Key.x",
     lowpoint = 0,
-    base = counties_base_usm,
+    base = counties_base,
     title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
     #    trans = "log10",
     border1_color = "grey",
-    border1_df = states_usm,
-    border2_df = usa_albersea,
+    border1_df = states,
+    add_insert_boxes = TRUE,
+    border2_df = usa,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_14avrg_c"
   )
   make_a_map_from_base(
-    df = counties_merged_usm,
+    df = counties_merged,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
-    base = counties_base_usm,
+    base = counties_base,
     title = paste("USA", main_14day_trend_txt, "Counties"),
     border1_color = "grey",
-    border1_df = states_usm,
-    border2_df = usa_albersea,
+    border1_df = states,
+    border2_df = usa,
+    add_insert_boxes = TRUE,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_trend_c"
   )
