@@ -20,11 +20,6 @@ library("mapdata")
 library("rgeos")
 library("rgdal")
 library("maptools")
-
-# for map transformations
-library("rgeos")
-library("rgdal")
-library("maptools")
 library("gpclib")
 gpclibPermit()
 
@@ -111,8 +106,12 @@ get_population <- function() {
     read.csv(
       "https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true"
     )
-  uid_iso_fips_lookup <<- mash_combined_key(uid_iso_fips_lookup)
+  uid_iso_fips_lookup[uid_iso_fips_lookup$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
+  uid_iso_fips_lookup <- mash_combined_key(uid_iso_fips_lookup)
   population <- uid_iso_fips_lookup
+
+  # put into global view
+  uid_iso_fips_lookup <<- uid_iso_fips_lookup
 
   return(population)
 }
@@ -327,6 +326,8 @@ get_full_county_name <- function(state = "not alaska",  county) {
     full_county_name <- county
   } else if (state == "District of Columbia") {
     full_county_name <- "District of Columbia"
+  } else if (state == "Guam") {
+    full_county_name <- "Guam"
   } else if (state == "Louisiana") {
     full_county_name = paste(county, "Parish")
   } else {
@@ -1629,15 +1630,18 @@ prep_wide_data <- function() {
   # if we only wonted WA
   #  us_counties_wide <- filter(usa_confirmed, Province_State == "Washington")
   us_counties_wide <- usa_confirmed
+  us_counties_wide[us_counties_wide$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
+
 
   # county data
   # before we add any columns get the last date column
   # then subtract one for the prior day since "today" might not be fully reported.
   latest <- dim(us_counties_wide)[2] - 1
   us_counties_wide <- mash_combined_key(us_counties_wide)
-  uid_iso_fips_lookup_m <- mash_combined_key(uid_iso_fips_lookup)
+#  uid_iso_fips_lookup_m <- mash_combined_key(uid_iso_fips_lookup)
+
   us_counties_wide <- merge(us_counties_wide,
-                            uid_iso_fips_lookup_m[, c("Population", "Combined_Key", "combinedkeylc")],
+                            population[, c("Population", "Combined_Key", "combinedkeylc")],
                             by = "combinedkeylc",
                             all.x = TRUE)
 
@@ -1964,14 +1968,8 @@ load_cb_shapefile <- function(loc,
     bound_df <- bound_df %>% rbind(as)
   }
 
-
   polys <- spTransform(bound_df, CRS("+init=epsg:4326"))
   fortified <- fortify(polys, region = "Combined_Key") %>% mutate(id = tolower(id))
-  # merge back stuff
-#  merged_back <- merge(fortified, as.data.frame(transformed), by.x="id", by.y=0)
- # polys_df <- merge(fortify(polys, region = "Combined_Key"), as.data.frame(polys), by=0)
-
-  #    fortify(state_name = "STATE_NAME", region = "NAME") %>%
 
   return(fortified)
 
