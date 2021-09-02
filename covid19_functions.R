@@ -1619,6 +1619,9 @@ mash_combined_key <- function(df) {
   df$combinedkeylc <- str_to_lower(df$Combined_Key)
   df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[.]", "")
   df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[ ]", "")
+  # since we take out single quotes in when we convert from UTF-8 we need
+  # to take out all single quotes for comparing keys
+  df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[']", "")
   return(df)
 }
 
@@ -1909,6 +1912,12 @@ load_cb_shapefile <- function(loc,
   else {
     sf_in@data[sf_in$STATE_NAME == "United States Virgin Islands", ]$STATE_NAME <- 'Virgin Islands'
     sf_in@data[sf_in$STATE_NAME == "Virgin Islands", ]$NAME <- 'Virgin Islands'
+    # cb files are UTF-8, other data sources are not
+    sf_in@data$NAME <-iconv(sf_in@data$NAME, "UTF-8", "ASCII//TRANSLIT")
+    sf_in@data$NAME <- gsub("'","" , sf_in@data$NAME,ignore.case = TRUE)
+    sf_in@data$NAME <- gsub("~","" , sf_in@data$NAME,ignore.case = TRUE)
+    sf_in@data$NAME <- gsub('"',"" , sf_in@data$NAME,ignore.case = TRUE)
+
     sf_in$Combined_Key <- paste(
       str_to_title(sf_in$NAME),
       ", ",
