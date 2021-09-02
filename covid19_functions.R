@@ -109,6 +109,7 @@ get_population <- function() {
   uid_iso_fips_lookup[uid_iso_fips_lookup$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
   # we don't get disaggregated covid19 data for usvi so treat all islands the same
   uid_iso_fips_lookup[uid_iso_fips_lookup$Province_State %in% "Virgin Islands", ]$Combined_Key <- "Virgin Islands, Virgin Islands, US"
+
   uid_iso_fips_lookup <- mash_combined_key(uid_iso_fips_lookup)
   population <- uid_iso_fips_lookup
 
@@ -1616,6 +1617,22 @@ summarize_wide_data <- function(df, latest_col) {
 
 # makes a consistent clean key for matching
 mash_combined_key <- function(df) {
+  # silly AK hacks
+  df <-
+    df %>% mutate(
+      Combined_Key = replace(
+        Combined_Key,
+        Combined_Key == "Yakutat plus Hoonah-Angoon, Alaska, US",
+        "Yakutat, Alaska, US"
+      )
+    ) %>% mutate(
+      Combined_Key = replace(
+        Combined_Key,
+        Combined_Key == "Bristol Bay plus Lake and Peninsula, Alaska, US",
+        "Lake and Peninsula, Alaska, US"
+      )
+    )
+
   df$combinedkeylc <- str_to_lower(df$Combined_Key)
   df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[.]", "")
   df$combinedkeylc <- str_replace_all(df$combinedkeylc, "[ ]", "")
