@@ -15,16 +15,13 @@ install.packages("tidyr")
 install.packages("ggplot2")
 install.packages("stringr")
 
-#for testing
+# for github actions tests
 install.packages("testthat")
 
 # mapping things
 install.packages("ggmap")
 install.packages("maps")
 install.packages("mapdata")
-
-# still need usmap
-install.packages("usmap")
 
 # map transformations
 # for ubuntu: sudo apt-get install libgeos++-dev libgeos-3.8.0 libgeos-c1v5 libgeos-dev

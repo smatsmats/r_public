@@ -141,18 +141,11 @@ onetime <- function() {
       )
   }
 
-  # don't use this anywhere
-  #steve_usa <<- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSrt-fhmYSJ4BUiombXneAsK9BRLyRxwqxxu47pkpiFP6ZgRrXwm4V7frh_rtwPqQAIrCm4RrT8TFkM/pub?gid=931635221&single=true&output=csv")
-
   # info on wa counties
   wa_counties <<-
     read.csv(
       "https://docs.google.com/uc?id=19OOGc3UmvN77oqPP9JeRKFbGSzuxzxRQ&export=download"
     )
-
-  # old filesystme grabs
-  #  county_transformations <<- read.csv("/Users/willey/Google\ Drive/data/county_transformations.csv")
-  #  wa_counties <<- read.csv("/Users/willey/Google\ Drive/data/wa_counties.csv")
 
   return(0)
 }
@@ -1646,16 +1639,16 @@ mash_combined_key <- function(df) {
 mash_province_state_key <- function(df) {
   df$provincestatelc <- str_to_lower(df$Province_State)
   df$provincestatelc <- str_replace_all(df$provincestatelc, "[.]", "")
-  df$provincestatelc <- str_replace_all(df$provincestatelc, "[ ]", "")
+  df$provincestatelc <-str_replace_all(df$provincestatelc, "[ ]", "")
   return(df)
 }
 
 prep_wide_data <- function() {
-  # if we only wonted WA
-  #  us_counties_wide <- filter(usa_confirmed, Province_State == "Washington")
   us_counties_wide <- usa_confirmed
-  us_counties_wide[us_counties_wide$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
-  us_counties_wide[us_counties_wide$Province_State %in% "Virgin Islands", ]$Combined_Key <- "Virgin Islands, Virgin Islands, US"
+  us_counties_wide[us_counties_wide$Province_State %in% "Guam",]$Combined_Key <-
+    "Guam, Guam, US"
+  us_counties_wide[us_counties_wide$Province_State %in% "Virgin Islands",]$Combined_Key <-
+    "Virgin Islands, Virgin Islands, US"
 
   # county data
   # before we add any columns get the last date column
@@ -1913,82 +1906,92 @@ insert_boxes <- function(p) {
 # a lot of manual tweaking to move non-conus states and territories
 # into insert positions
 load_cb_shapefile <- function(loc,
-                                 layer,
-                                 doing_state = TRUE,
-                                 include_nmi = FALSE,
-                                 include_as = FALSE) {
-
-  sf_in <- readOGR(dsn = loc, layer = layer, verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
+                              layer,
+                              doing_state = TRUE,
+                              include_nmi = FALSE,
+                              include_as = FALSE) {
+  sf_in <-
+    readOGR(dsn = loc,
+            layer = layer,
+            verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
 
   # mess with USVI name and make a combined key
-  if ( doing_state ) {
-    sf_in@data[sf_in$NAME == "United States Virgin Islands", ]$NAME <- 'Virgin Islands'
+  if (doing_state) {
+    sf_in@data[sf_in$NAME == "United States Virgin Islands",]$NAME <-
+      'Virgin Islands'
     sf_in$STATE_NAME <- sf_in$NAME
     sf_in$Combined_Key <- tolower(sf_in$NAME)
   }
   else {
-    sf_in@data[sf_in$STATE_NAME == "United States Virgin Islands", ]$STATE_NAME <- 'Virgin Islands'
-    sf_in@data[sf_in$STATE_NAME == "Virgin Islands", ]$NAME <- 'Virgin Islands'
+    sf_in@data[sf_in$STATE_NAME == "United States Virgin Islands",]$STATE_NAME <-
+      'Virgin Islands'
+    sf_in@data[sf_in$STATE_NAME == "Virgin Islands",]$NAME <-
+      'Virgin Islands'
     # cb files are UTF-8, other data sources are not
-    sf_in@data$NAME <-iconv(sf_in@data$NAME, "UTF-8", "ASCII//TRANSLIT")
-    sf_in@data$NAME <- gsub("'","" , sf_in@data$NAME,ignore.case = TRUE)
-    sf_in@data$NAME <- gsub("~","" , sf_in@data$NAME,ignore.case = TRUE)
-    sf_in@data$NAME <- gsub('"',"" , sf_in@data$NAME,ignore.case = TRUE)
+    sf_in@data$NAME <-
+      iconv(sf_in@data$NAME, "UTF-8", "ASCII//TRANSLIT")
+    sf_in@data$NAME <-
+      gsub("'", "" , sf_in@data$NAME, ignore.case = TRUE)
+    sf_in@data$NAME <-
+      gsub("~", "" , sf_in@data$NAME, ignore.case = TRUE)
+    sf_in@data$NAME <-
+      gsub('"', "" , sf_in@data$NAME, ignore.case = TRUE)
 
-    sf_in$Combined_Key <- paste(
-      str_to_title(sf_in$NAME),
-      ", ",
-      str_to_title(sf_in$STATE_NAME),
-      ", US",
-      sep = ""
-    )
+    sf_in$Combined_Key <- paste(str_to_title(sf_in$NAME),
+                                ", ",
+                                str_to_title(sf_in$STATE_NAME),
+                                ", US",
+                                sep = "")
   }
 
-  alaska <- sf_in[sf_in$STATE_NAME == "Alaska", ] %>%
-    transform_state(-35, 2.5, c(-2400000, -2100000))
+  alaska <- sf_in[sf_in$STATE_NAME == "Alaska",] %>%
+    transform_state(-35, 2.5, c(-2400000,-2100000))
   proj4string(alaska) <- proj4string(sf_in)
 
-  hawaii <- sf_in[sf_in$STATE_NAME == "Hawaii", ] %>%
-    transform_state(-35, .75, c(-1000000,-2373000))
+  hawaii <- sf_in[sf_in$STATE_NAME == "Hawaii",] %>%
+    transform_state(-35, .75, c(-1000000, -2373000))
   proj4string(hawaii) <- proj4string(sf_in)
 
-  dc <- sf_in[sf_in$STATE_NAME == "District of Columbia", ] %>%
-    transform_state(0, .1, c(2525000,-700000))
+  dc <- sf_in[sf_in$STATE_NAME == "District of Columbia",] %>%
+    transform_state(0, .1, c(2525000, -700000))
   proj4string(dc) <- proj4string(sf_in)
 
-  pr <- sf_in[sf_in$STATE_NAME == "Puerto Rico", ] %>%
-    transform_state(0, .5, c(2500000,-1250000))
+  pr <- sf_in[sf_in$STATE_NAME == "Puerto Rico",] %>%
+    transform_state(0, .5, c(2500000, -1250000))
   proj4string(pr) <- proj4string(sf_in)
 
-  guam <- sf_in[sf_in$STATE_NAME == "Guam", ] %>%
-    transform_state(0, .25, c(-2200000,-1400000))
+  guam <- sf_in[sf_in$STATE_NAME == "Guam",] %>%
+    transform_state(0, .25, c(-2200000, -1400000))
   proj4string(guam) <- proj4string(sf_in)
 
-  usvi <- sf_in[sf_in$STATE_NAME == "Virgin Islands", ] %>%
-    transform_state(0, .25, c(2800000,-1800000))
+  usvi <- sf_in[sf_in$STATE_NAME == "Virgin Islands",] %>%
+    transform_state(0, .25, c(2800000, -1800000))
   proj4string(usvi) <- proj4string(sf_in)
 
 
-  if ( include_as ) {
-    as <- sf_in[sf_in$STATE_NAME == "American Samoa", ] %>%
-      transform_state(0, 1, c(5500000,2200000))
+  if (include_as) {
+    as <- sf_in[sf_in$STATE_NAME == "American Samoa",] %>%
+      transform_state(0, 1, c(5500000, 2200000))
     proj4string(as) <- proj4string(sf_in)
   }
 
-  if ( include_nmi ) {
-    nmi <- sf_in[sf_in$STATE_NAME == "Commonwealth of the Northern Mariana Islands", ] %>%
-      transform_state(0, .5, c(3000000,-300000))
+  if (include_nmi) {
+    nmi <-
+      sf_in[sf_in$STATE_NAME == "Commonwealth of the Northern Mariana Islands",] %>%
+      transform_state(0, .5, c(3000000, -300000))
     proj4string(nmi) <- proj4string(sf_in)
   }
 
   bound_df <-
-    sf_in[!sf_in$STATE_NAME %in% c("Alaska",
-                                   "Hawaii",
-                                   "Guam",
-                                   "Commonwealth of the Northern Mariana Islands",
-                                   "Virgin Islands",
-                                   "Puerto Rico",
-                                   "American Samoa"), ] %>%
+    sf_in[!sf_in$STATE_NAME %in% c(
+      "Alaska",
+      "Hawaii",
+      "Guam",
+      "Commonwealth of the Northern Mariana Islands",
+      "Virgin Islands",
+      "Puerto Rico",
+      "American Samoa"
+    ),] %>%
     rbind(alaska) %>%
     rbind(hawaii) %>%
     rbind(dc) %>%
@@ -1996,15 +1999,16 @@ load_cb_shapefile <- function(loc,
     rbind(usvi) %>%
     rbind(guam)
 
-  if ( include_nmi ) {
+  if (include_nmi) {
     bound_df <- bound_df %>% rbind(nmi)
   }
-  if ( include_as ) {
+  if (include_as) {
     bound_df <- bound_df %>% rbind(as)
   }
 
   polys <- spTransform(bound_df, CRS("+init=epsg:4326"))
-  fortified <- fortify(polys, region = "Combined_Key") %>% mutate(id = tolower(id))
+  fortified <-
+    fortify(polys, region = "Combined_Key") %>% mutate(id = tolower(id))
 
   return(fortified)
 
@@ -2104,16 +2108,16 @@ make_maps <- function() {
 
   # frankly the simple maps look better when blown-up
   # so we have both
-  counties_md <- map_data("county")
+  counties_mapd <- map_data("county")
   # make a combined key that matches our data
-  counties_md$Combined_Key <- paste(
-      str_to_title(counties_md$subregion),
+  counties_mapd$Combined_Key <- paste(
+      str_to_title(counties_mapd$subregion),
       ", ",
-      str_to_title(counties_md$region),
+      str_to_title(counties_mapd$region),
       ", US",
       sep = ""
     )
-  counties_md <- mash_combined_key(counties_md)
+  counties_mapd <- mash_combined_key(counties_mapd)
 
   # add Province_State to make merging easier
   # I guess keep this around for the borders
@@ -2133,11 +2137,11 @@ make_maps <- function() {
   counties_merged <-
     inner_join(counties, us_counties_wide, by = "combinedkeylc")
 
-  counties_md_merged <-
-    inner_join(counties_md, us_counties_wide, by = "combinedkeylc")
+  counties_mapd_merged <-
+    inner_join(counties_mapd, us_counties_wide, by = "combinedkeylc")
 
-  wa_counties_md_merged <-
-    subset(counties_md_merged, Province_State == "Washington")
+  wa_counties_mapd_merged <-
+    subset(counties_mapd_merged, Province_State == "Washington")
 
 # counties usm  *************
 #  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
@@ -2156,25 +2160,25 @@ make_maps <- function() {
     geom_polygon(color = "black", fill = "gray")
 
   make_a_map_from_base(
-    df = wa_counties_md_merged,
+    df = wa_counties_mapd_merged,
     key = "Combined_Key.x",
     var = "avrg14_per_hundy",
     base = wa_base,
     lowpoint = 0,
     border1_color = "grey",
-    border1_df = wa_counties_md_merged,
+    border1_df = wa_counties_mapd_merged,
     border2_df = wa_df,
     title = paste("Washington",
                   main_daily_cases_hundy_14d_avrg_txt),
     filebase = "map_wa_14avrg"
   )
   make_a_map_from_base(
-    df = wa_counties_md_merged,
+    df = wa_counties_mapd_merged,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
     border1_color = "grey",
-    border1_df = wa_counties_md_merged,
+    border1_df = wa_counties_mapd_merged,
     border2_df = wa_df,
     base = wa_base,
     title = paste("Washington", main_14day_trend_txt),
