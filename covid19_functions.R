@@ -58,7 +58,7 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 # constants
 plot_start_date <- "2020/3/1"  # not the earliest case in WA but ...
 plot_end_date <-
-  format(Sys.Date(), "%Y/%m/%d") #gets reset in newday function
+  format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
 cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
 daily_c19_cases_txt <- "Daily COVID-19 Cases"
 fourteen_day_avrg_txt <- "14day Average"
@@ -100,13 +100,15 @@ file_to_bucket <- function(file, unlink_after = TRUE) {
   return(0)
 }
 
-# reads in population file date and does some formating
+# reads in population data and does some formating
 get_population <- function() {
   uid_iso_fips_lookup <-
     read.csv(
       "https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv?raw=true"
     )
   uid_iso_fips_lookup[uid_iso_fips_lookup$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
+  # we don't get disaggregated covid19 data for usvi so treat all islands the same
+  uid_iso_fips_lookup[uid_iso_fips_lookup$Province_State %in% "Virgin Islands", ]$Combined_Key <- "Virgin Islands, Virgin Islands, US"
   uid_iso_fips_lookup <- mash_combined_key(uid_iso_fips_lookup)
   population <- uid_iso_fips_lookup
 
@@ -328,6 +330,8 @@ get_full_county_name <- function(state = "not alaska",  county) {
     full_county_name <- "District of Columbia"
   } else if (state == "Guam") {
     full_county_name <- "Guam"
+  } else if (state == "Virgin Islands") {
+    full_county_name <- "Virgin Islands"
   } else if (state == "Louisiana") {
     full_county_name = paste(county, "Parish")
   } else {
@@ -1631,14 +1635,13 @@ prep_wide_data <- function() {
   #  us_counties_wide <- filter(usa_confirmed, Province_State == "Washington")
   us_counties_wide <- usa_confirmed
   us_counties_wide[us_counties_wide$Province_State %in% "Guam", ]$Combined_Key <- "Guam, Guam, US"
-
+  us_counties_wide[us_counties_wide$Province_State %in% "Virgin Islands", ]$Combined_Key <- "Virgin Islands, Virgin Islands, US"
 
   # county data
   # before we add any columns get the last date column
   # then subtract one for the prior day since "today" might not be fully reported.
   latest <- dim(us_counties_wide)[2] - 1
   us_counties_wide <- mash_combined_key(us_counties_wide)
-#  uid_iso_fips_lookup_m <- mash_combined_key(uid_iso_fips_lookup)
 
   us_counties_wide <- merge(us_counties_wide,
                             population[, c("Population", "Combined_Key", "combinedkeylc")],
@@ -1698,7 +1701,7 @@ make_a_map_from_base <- function(df,
   )
 
   # if we get a key then can make a df with only the key and values
-  # to make available for on the the webpage
+  # to make available on the webpage
   if (!is.null(key)) {
     df4export <- unique(df[, c(key, var)])
     if (!is.null(filebase)) {
@@ -1822,6 +1825,7 @@ transform_state <- function(object, rot, scale, shift){
     elide(shift = shift)
 }
 
+# manually construct insert boxes instead of map bboxes so they look nicer.
 insert_boxes <- function(p) {
   lat <- c(38,38,33,33,33,33)
   long <- c(-73,-68,-68,-73,-73,-73)
@@ -1895,11 +1899,16 @@ load_cb_shapefile <- function(loc,
                                  include_as = FALSE) {
 
   sf_in <- readOGR(dsn = loc, layer = layer, verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
+
+  # mess with USVI name and make a combined key
   if ( doing_state ) {
+    sf_in@data[sf_in$NAME == "United States Virgin Islands", ]$NAME <- 'Virgin Islands'
     sf_in$STATE_NAME <- sf_in$NAME
     sf_in$Combined_Key <- tolower(sf_in$NAME)
   }
   else {
+    sf_in@data[sf_in$STATE_NAME == "United States Virgin Islands", ]$STATE_NAME <- 'Virgin Islands'
+    sf_in@data[sf_in$STATE_NAME == "Virgin Islands", ]$NAME <- 'Virgin Islands'
     sf_in$Combined_Key <- paste(
       str_to_title(sf_in$NAME),
       ", ",
@@ -1929,7 +1938,7 @@ load_cb_shapefile <- function(loc,
     transform_state(0, .25, c(-2200000,-1400000))
   proj4string(guam) <- proj4string(sf_in)
 
-  usvi <- sf_in[sf_in$STATE_NAME == "United States Virgin Islands", ] %>%
+  usvi <- sf_in[sf_in$STATE_NAME == "Virgin Islands", ] %>%
     transform_state(0, .25, c(2800000,-1800000))
   proj4string(usvi) <- proj4string(sf_in)
 
@@ -1951,7 +1960,7 @@ load_cb_shapefile <- function(loc,
                                    "Hawaii",
                                    "Guam",
                                    "Commonwealth of the Northern Mariana Islands",
-                                   "United States Virgin Islands",
+                                   "Virgin Islands",
                                    "Puerto Rico",
                                    "American Samoa"), ] %>%
     rbind(alaska) %>%
@@ -2023,7 +2032,7 @@ get_states_polygons <- function() {
   print(paste("Shapefile:", loc))
 
   layer <- "cb_2020_us_state_5m"
-  states50new <- load_cb_shapefile(loc, layer)
+  states50new <- load_cb_shapefile(loc, layer, doing_state = TRUE)
   if (!KEEP_FILES) {
     unlink(unzipped_dir)
   }
@@ -2051,19 +2060,16 @@ get_county_polygons <- function() {
   return(counties50new)
 }
 
-
+# mega map maker
+# we get maps both from mapdata and census bureau shapefiles
 make_maps <- function() {
 
   # first get usa outline
   usa <- map_data("usa")
-#  usa_albersea <- usmap_transform(usa)
-#  usa_albersea <- rename(usa_albersea, y = lat.1)
-#  usa_albersea <- rename(usa_albersea, x = long.1)
 
   # states outlines
   states <- map_data("state")
   states50 <- get_states_polygons()
-  states50[states50$id == "united states virgin islands", ]$id <- 'virgin islands'
 
   # county outlines
   counties <- get_county_polygons()
@@ -2107,9 +2113,6 @@ make_maps <- function() {
   wa_counties_md_merged <-
     subset(counties_md_merged, Province_State == "Washington")
 
-  nb_counties_md_merged <-
-    subset(counties_md_merged, Province_State == "Nebraska")
-
 # counties usm  *************
 #  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
 #  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
@@ -2125,14 +2128,6 @@ make_maps <- function() {
            mapping = aes(x = long, y = lat, group = group)) +
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
-
-  nb_df <- subset(states, region == "nebraska")
-  nb_base <-
-    ggplot(data = nb_df,
-           mapping = aes(x = long, y = lat, group = group)) +
-    coord_fixed(1.3) +
-    geom_polygon(color = "black", fill = "gray")
-
 
   make_a_map_from_base(
     df = wa_counties_md_merged,
@@ -2158,32 +2153,6 @@ make_maps <- function() {
     base = wa_base,
     title = paste("Washington", main_14day_trend_txt),
     filebase = "map_wa_trend"
-  )
-
-  make_a_map_from_base(
-    df = nb_counties_md_merged,
-    key = "Combined_Key.x",
-    var = "avrg14_per_hundy",
-    base = nb_base,
-    lowpoint = 0,
-    border1_color = "grey",
-    border1_df = nb_counties_md_merged,
-    border2_df = nb_df,
-    title = paste("Nebraska",
-                  main_daily_cases_hundy_14d_avrg_txt),
-    filebase = "map_nb_14avrg"
-  )
-  make_a_map_from_base(
-    df = nb_counties_md_merged,
-    var = "trend",
-    key = "Combined_Key.x",
-    midpoint = 0,
-    border1_color = "grey",
-    border1_df = nb_counties_md_merged,
-    border2_df = nb_df,
-    base = nb_base,
-    title = paste("Nebraska", main_14day_trend_txt),
-    filebase = "map_nb_trend"
   )
 
   states50_base <-
