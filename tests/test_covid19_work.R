@@ -17,7 +17,7 @@ test_that("pop_format", {
 test_that("init", {
   expect_equal(onetime(), 0)
   expect_equal(newday(), 0)
-  expect_equal(vax_data(), 0)
+  expect_equal(get_vax_data(), 0)
 })
 
 population <- get_population()
