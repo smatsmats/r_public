@@ -32,7 +32,7 @@ cat("Code loaded\n")
 ret <- onetime()
 cat("OneTime loaded\n")
 
-ret <- vax_data()
+ret <- get_vax_data()
 cat("Vax Data loaded\n")
 
 ret <- newday()

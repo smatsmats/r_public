@@ -37,7 +37,6 @@ ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
-live_mode <- FALSE
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
@@ -179,9 +178,10 @@ newday <- function() {
   global_confirmed_t$admin0 <<-
     tolower(global_confirmed_t$Country.Region)
   admin0_t <<-
-    global_confirmed_t %>% group_by(Country.Region, dates) %>% summarise(cases =
-                                                                           sum(cases))
-
+    global_confirmed_t %>% 
+    group_by(Country.Region, dates) %>%
+    summarise(cases = sum(cases), .groups = 'drop')
+  
   uc <- usa_confirmed
 
   # remove soem junk
@@ -209,8 +209,9 @@ newday <- function() {
             format = "%m.%d.%y")
   usa_confirmed_t$state_ <<- tolower(usa_confirmed_t$Province_State)
   usa_states <<-
-    usa_confirmed_t %>% group_by(Province_State, dates) %>% summarise(cases =
-                                                                        sum(cases))
+    usa_confirmed_t %>% 
+    group_by(Province_State, dates) %>%
+    summarise(cases = sum(cases), .groups = 'drop')
 
   # pivot back wide to get the nice wide version
   us_states_wide_raw <<- pivot_wider(
@@ -223,7 +224,7 @@ newday <- function() {
   return(0)
 }
 
-vax_data <- function() {
+get_vax_data <- function() {
   vax_global_wide_raw <<-
     read.csv(
       "https://raw.githubusercontent.com/govex/COVID-19/master/data_tables/vaccine_data/global_data/time_series_covid19_vaccine_doses_admin_global.csv"
@@ -342,6 +343,25 @@ get_full_county_name <- function(state = "not alaska",  county) {
   return(full_county_name)
 }
 
+# a constructor function for the "place" class
+place <- function(place_name,
+                  admin_level,
+                  txt,
+                  df) {
+  # admin1 e.g. us state, cnd province
+  # admin2 e.g. us county
+  ok_levels <- c("country", "admin1", "admin2")
+  if( ! admin_level %in% ok_levels ) {
+    stop("need a correct administrative level")
+  } 
+  obj <- list(name = place_name, 
+              level = admin_level, 
+              txt = txt, 
+              df = df)
+  attr(obj, "class") <- "place"
+  obj
+}
+
 # old function where we only returned winning prez candidate
 get_2016_prez <- function(state, county) {
   mycounty <- county
@@ -400,31 +420,6 @@ get_redblue2016 <- function(state, county) {
 
 get_redblue <-  function(state, county) {
   get_redblue2016(state, county)
-}
-
-if (live_mode) {
-  print(paste("Washington", "Island", get_redblue("Washington", "Island")))
-  print(paste(
-    "Washington",
-    "Columbia",
-    get_redblue("Washington", "Columbia")
-  ))
-  print(paste(
-    "Washington",
-    "Garfield",
-    get_redblue("Washington", "Garfield")
-  ))
-  print(paste("Alaska", "bumfuck", get_redblue("Alaska", "bumfuck")))
-  print(paste(
-    "Louisiana",
-    "Terrebonne",
-    get_redblue("Louisiana", "Terrebonne")
-  ))
-  print(paste(
-    "District of Columbia",
-    "dc",
-    get_redblue("District of Columbia", "dc")
-  ))
 }
 
 make_plot <- function(df,
@@ -745,38 +740,6 @@ get_admin2 <- function(state, county) {
 
 }
 
-
-if (live_mode) {
-  b_ci_cases <-
-    get_admin2("Maryland", "Baltimore City")
-  make_plot(b_ci_cases, "bongo", "bingo")
-  ic_cases <- get_admin2("Washington", "Island")
-
-  make_plot(
-    loc_txt = "Washington",
-    "Island",
-    df = ic_cases,
-    daily_cases = TRUE,
-    file_base = NULL
-  )
-  kc_cases <- get_admin2("Washington", "King")
-  make_plot(
-    loc_txt = "Washington",
-    "King",
-    df = kc_cases,
-    daily_cases = TRUE,
-    file_base = NULL
-  )
-  cc_cases <- get_admin2("Washington", "Columbia")
-  ac_cases <- get_admin2("Washington", "Adams")
-  wa_cases <- get_admin2("Washington", "Total")
-
-  gc_cases <- get_admin2("Washington", "Garfield")
-  tc_cases <- get_admin2("Louisiana", "Terrebonne")
-  junk_new <- get_admin2("Virginia", "Lunenburg")
-
-}
-
 write_csv_file <- function(df, file_base) {
   write.csv(df, paste(file_base, ".csv", sep = ""))
 }
@@ -1070,18 +1033,6 @@ get_admin1 <- function(admin1,
 
   return(df)
 
-}
-
-
-if (live_mode) {
-  wa_cases <<- get_admin1("Washington")
-  make_plot(wa_cases, "bongo", cases = TRUE)
-  dp_cases <<- get_admin1("Diamond Princess")
-  ca_bc_cases <<- get_admin1("British Columbia", admin0 = "Canada")
-  make_plot(ca_bc_cases, "bongo", daily_cases = TRUE)
-  dc_cases <<- get_admin1("District of Columbia")
-  write.csv(wa_cases, "wa_cases.csv")
-  pr_cases <- get_admin1("Puerto Rico")
 }
 
 get_admin0 <- function(country_in) {
@@ -1571,11 +1522,6 @@ wa_east_west <- function(plot_casesned = FALSE,
 
 }
 
-if (live_mode) {
-  a_cases <- get_admin2(state = "Washington", county = "Adams")
-  wa_east_west(file_base = "waeastwest")
-}
-
 summarize_vax_wide_data <- function(df, latest_col) {
   df$latest <- df[, latest_col]
   df$vax_pct <- df$latest / df$Population
@@ -1681,10 +1627,6 @@ prep_wide_data <- function() {
 
   us_states_wide <- mash_province_state_key(us_states_wide)
   us_states_wide <<- summarize_wide_data(us_states_wide, latest)
-}
-
-if (live_mode) {
-  prep_wide_data()
 }
 
 make_a_map_from_base <- function(df,
@@ -2287,19 +2229,15 @@ make_maps <- function() {
   return()
 }
 
-if (live_mode) {
-  make_maps()
-}
-
 doit <- function() {
   # build all washington counties
   build_all_counties(
     state = "Washington",
-    ref_county = "King",
     keep_dfs = TRUE,
     write_dfs = TRUE,
-    plot_state_cases_per_hundy = TRUE,
     plot_ref_and = TRUE,
+    ref_county = "King",
+    plot_state_cases_per_hundy = TRUE,
     plot_daily_cases = TRUE
   )
 
@@ -2323,34 +2261,13 @@ doit <- function() {
     file_to_bucket("USA_daily_cases.jpg")
   }
 
-  ic_cases <- get_admin2("Washington", "Island")
-  kc_cases <- get_admin2("Washington", "King")
-  kc_txt <-
-    paste("King County, WA (pop=", pop_format(kc_cases$pop[1]), ")", sep =
-            "")
-  wh_cases <- get_admin2("Washington", "Whitman")
-  kit_cases <- get_admin2("Washington", "Kitsap")
-  sno_cases <-
-    get_admin2("Washington", "Snohomish")
-  ska_cases <- get_admin2("Washington", "Skagit")
   b_co_cases <-
     get_admin2("Maryland", "Baltimore")
   b_ci_cases <-
     get_admin2("Maryland", "Baltimore City")
-  # wic_cases <- get_admin2("Maryland", "Wicomico")
   mad_cases <- get_admin2("Virginia", "Madison")
-  all_cases <-
+  pennsylvania_allegheny_df <-
     get_admin2("Pennsylvania", "Allegheny")
-  yak_cases <- get_admin2("Washington", "Yakima")
-  # oc_cases <- get_admin2("California", "Orange")
-  che_cases <- get_admin2("Washington", "Chelan")
-  doug_cases <-
-    get_admin2("Washington", "Douglas")
-  # lane_cases <- get_admin2("Oregon", "Lane")
-  sji_cases <-
-    get_admin2("Washington", "San Juan")
-  jeff_cases <-
-    get_admin2("Washington", "Jefferson")
 
   ca_bc_cases <-
     get_admin1(admin0 = "Canada", admin1 = "British Columbia")
@@ -2361,26 +2278,6 @@ doit <- function() {
           sep = "")
   ca_on_cases <- get_admin1(admin0 = "Canada", admin1 = "Ontario")
 
-  yak_txt <-
-    paste("Yakima County, WA (pop=",
-          pop_format(yak_cases$pop[1]),
-          ")",
-          sep = "")
-  wh_txt <-
-    paste("Whitman County, WA (pop=",
-          pop_format(wh_cases$pop[1]),
-          ")",
-          sep = "")
-  ic_txt <-
-    paste("Island County, WA (pop=",
-          pop_format(ic_cases$pop[1]),
-          ")",
-          sep = "")
-  kit_txt <-
-    paste("Kitsap County, WA (pop=",
-          pop_format(kit_cases$pop[1]),
-          ")",
-          sep = "")
   b_co_txt <-
     paste("Baltimore County, MD (pop=",
           pop_format(b_co_cases$pop[1]),
@@ -2393,37 +2290,12 @@ doit <- function() {
           sep = "")
   all_txt <-
     paste("Allegheny County, PA (pop=",
-          pop_format(all_cases$pop[1]),
+          pop_format(pennsylvania_allegheny_df$pop[1]),
           ")",
           sep = "")
   mad_txt <-
     paste("Madison County, VA (pop=",
           pop_format(mad_cases$pop[1]),
-          ")",
-          sep = "")
-  sji_txt <-
-    paste("San Juan County, WA (pop=",
-          pop_format(sji_cases$pop[1]),
-          ")",
-          sep = "")
-  jeff_txt <-
-    paste("Jefferson County, WA (pop=",
-          pop_format(jeff_cases$pop[1]),
-          ")",
-          sep = "")
-  sno_txt <-
-    paste("Snohomish County, WA (pop=",
-          pop_format(sno_cases$pop[1]),
-          ")",
-          sep = "")
-  ska_txt <-
-    paste("Skagit County, WA (pop=",
-          pop_format(ska_cases$pop[1]),
-          ")",
-          sep = "")
-  kit_txt <-
-    paste("Kitsap County, WA (pop=",
-          pop_format(kit_cases$pop[1]),
           ")",
           sep = "")
   if (USA_ALL) {
@@ -2460,33 +2332,33 @@ doit <- function() {
     dates = washington_df$dates,
     wa = washington_df$cases_per_hundy,
     mt = montana_df$cases_per_hundy,
-    ic = ic_cases$cases_per_hundy,
-    kc = kc_cases$cases_per_hundy,
-    yak = yak_cases$cases_per_hundy,
-    all = all_cases$cases_per_hundy,
+    ic = washington_island_df$cases_per_hundy,
+    kc = washington_king_df$cases_per_hundy,
+    yak = washington_yakima_df$cases_per_hundy,
+    all = pennsylvania_allegheny_df$cases_per_hundy,
     mad = mad_cases$cases_per_hundy,
-    sji = sji_cases$cases_per_hundy,
-    sno = sno_cases$cases_per_hundy,
-    ska = ska_cases$cases_per_hundy,
-    jeff = jeff_cases$cases_per_hundy,
-    kit = kit_cases$cases_per_hundy,
+    sji = washington_san_juan_df$cases_per_hundy,
+    sno = washington_snohomish_df$cases_per_hundy,
+    ska = washington_skagit_df$cases_per_hundy,
+    jeff = washington_jefferson_df$cases_per_hundy,
+    kit = washington_kitsap_df$cases_per_hundy,
     b_co = b_co_cases$cases_per_hundy,
     b_ci = b_ci_cases$cases_per_hundy,
     usa = usa_cases$cases_per_hundy
   )
   p <-
     ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
-    geom_line(aes(y = ic, colour = ic_txt), linetype = "solid") +
-    geom_line(aes(y = kc, colour = kc_txt), linetype = "solid") +
+    geom_line(aes(y = ic, colour = washington_island_txt), linetype = "solid") +
+    geom_line(aes(y = kc, colour = washington_king_txt), linetype = "solid") +
     geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
 #    geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
     geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
     geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
-    geom_line(aes(y = kit, colour = kit_txt), linetype = "solid") +
-    geom_line(aes(y = jeff, colour = jeff_txt), linetype = "solid") +
-    geom_line(aes(y = sji, colour = sji_txt), linetype = "solid") +
-    geom_line(aes(y = ska, colour = ska_txt), linetype = "solid") +
-    geom_line(aes(y = sno, colour = sno_txt), linetype = "solid") +
+    geom_line(aes(y = kit, colour = washington_kitsap_txt), linetype = "solid") +
+    geom_line(aes(y = jeff, colour = washington_jefferson_txt), linetype = "solid") +
+    geom_line(aes(y = sji, colour = washington_san_juan_txt), linetype = "solid") +
+    geom_line(aes(y = ska, colour = washington_skagit_txt), linetype = "solid") +
+    geom_line(aes(y = sno, colour = washington_snohomish_txt), linetype = "solid") +
 #    geom_line(aes(y = yak, colour = yak_txt), linetype = "solid") +
     geom_line(aes(y = all, colour = all_txt), linetype = "solid") +
     geom_line(aes(y = mad, colour = mad_txt), linetype = "solid") +
@@ -2548,17 +2420,17 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
 
-  maxy = max(wh_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  maxy = max(washington_whitman_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
   apple_df <- data.frame(
-    dates = kc_cases$dates,
-    kc = kc_cases$daily_cases_per_hundy_avrg14d,
-    wh = wh_cases$daily_cases_per_hundy_avrg14d,
+    dates = washington_king_df$dates,
+    kc = washington_king_df$daily_cases_per_hundy_avrg14d,
+    wh = washington_whitman_df$daily_cases_per_hundy_avrg14d,
     wa = washington_df$daily_cases_per_hundy_avrg14d
   )
   p <- ggplot(data = apple_df, aes(dates)) +
-    geom_line(aes(y = kc, colour = kc_txt)) +
-    geom_line(aes(y = wh, colour = wh_txt)) +
+    geom_line(aes(y = kc, colour = washington_king_txt)) +
+    geom_line(aes(y = wh, colour = washington_whitman_txt)) +
     scale_color_manual(values = c("purple", "darkred")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
@@ -2597,16 +2469,16 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
 
-  apple_cup <- data.frame(wh_cases$dates,
-                          wh_cases$cases_per_hundy,
-                          kc_cases$cases_per_hundy)
-  p <- ggplot(data = apple_cup, aes(wh_cases.dates)) +
-    geom_line(aes(y = wh_cases.cases_per_hundy,
-                  colour = wh_txt)) +
-    geom_line(aes(y = kc_cases.cases_per_hundy,
-                  colour = kc_txt)) +
+  apple_cup <- data.frame(washington_whitman_df$dates,
+                          washington_whitman_df$cases_per_hundy,
+                          washington_king_df$cases_per_hundy)
+  p <- ggplot(data = apple_cup, aes(washington_whitman_df.dates)) +
+    geom_line(aes(y = washington_whitman_df.cases_per_hundy,
+                  colour = washington_whitman_txt)) +
+    geom_line(aes(y = washington_king_df.cases_per_hundy,
+                  colour = washington_king_txt)) +
     scale_color_manual(values = c("purple", "darkred")) +
-    ylim(0, max(apple_cup$wh_cases.cases_per_hundy)) +
+    ylim(0, max(apple_cup$washington_whitman_df.cases_per_hundy)) +
     labs(
       title = paste(cumulative_c19_cases_txt, hundy_txt),
       subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
@@ -2646,15 +2518,15 @@ doit <- function() {
 
   # 14 day moving plots
   make_plot(
-    loc_txt = ic_txt,
-    df = ic_cases,
+    loc_txt = washington_island_txt,
+    df = washington_island_df,
     daily_cases = TRUE,
     file_base = "island_wa"
   )
   file_to_bucket(file = "island_wa_daily_cases.jpg")
   make_plot(
-    loc_txt = kc_txt,
-    df = kc_cases,
+    loc_txt = washington_king_txt,
+    df = washington_king_df,
     daily_cases = TRUE,
     file_base = "king_wa"
   )
@@ -2676,15 +2548,15 @@ doit <- function() {
 
 
   temp_df <- data.frame(
-    dates = wh_cases$dates,
-    kc = kc_cases$daily_cases_per_hundy_avrg14d,
-    ic = ic_cases$daily_cases_per_hundy_avrg14d,
+    dates = washington_whitman_df$dates,
+    kc = washington_king_df$daily_cases_per_hundy_avrg14d,
+    ic = washington_island_df$daily_cases_per_hundy_avrg14d,
     wa = washington_df$daily_cases_per_hundy_avrg14d,
     b_co = b_co_cases$daily_cases_per_hundy_avrg14d
   )
   p <- ggplot(data = temp_df, aes(dates)) +
-    geom_line(aes(y = kc, colour = kc_txt)) +
-    geom_line(aes(y = ic, colour = ic_txt)) +
+    geom_line(aes(y = kc, colour = washington_king_txt)) +
+    geom_line(aes(y = ic, colour = washington_island_txt)) +
     geom_line(aes(y = b_co, colour = b_co_txt)) +
     scale_color_manual(values = c("red", "blue", "green")) +
     ylim(0, maxy) +
@@ -2725,8 +2597,8 @@ doit <- function() {
 
   p <- ggplot(data = temp_df, aes(dates)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
-    geom_line(aes(y = ic, colour = ic_txt)) +
-    geom_line(aes(y = kc, colour = kc_txt)) +
+    geom_line(aes(y = ic, colour = washington_island_txt)) +
+    geom_line(aes(y = kc, colour = washington_king_txt)) +
     scale_color_manual(values = c("blue", "green", "darkgreen")) +
     ylim(0, maxy) +
     labs(
@@ -2763,13 +2635,13 @@ doit <- function() {
        height = plot_file_height)
 
   temp_df_sum <- data.frame(
-    dates = wh_cases$dates,
-    kc = kc_cases$daily_cases_per_hundy_sum14d,
-    ic = ic_cases$daily_cases_per_hundy_sum14d,
+    dates = washington_king_df$dates,
+    kc = washington_king_df$daily_cases_per_hundy_sum14d,
+    ic = washington_island_df$daily_cases_per_hundy_sum14d,
     wa = washington_df$daily_cases_per_hundy_sum14d,
-    ska = ska_cases$daily_cases_per_hundy_sum14d,
-    kit = kit_cases$daily_cases_per_hundy_sum14d,
-    sno = sno_cases$daily_cases_per_hundy_sum14d,
+    ska = washington_skagit_df$daily_cases_per_hundy_sum14d,
+    kit = washington_kitsap_df$daily_cases_per_hundy_sum14d,
+    sno = washington_snohomish_df$daily_cases_per_hundy_sum14d,
     b_co = b_co_cases$daily_cases_per_hundy_sum14d
   )
   maxy = max(washington_df$daily_cases_per_hundy_sum14d, na.rm = TRUE)
@@ -2777,11 +2649,11 @@ doit <- function() {
   start_graph <- today - months(2)
 
   p <- ggplot(data = temp_df_sum, aes(dates)) +
-    geom_line(aes(y = sno, colour = sno_txt)) +
-    geom_line(aes(y = ic, colour = ic_txt)) +
-    geom_line(aes(y = ska, colour = ska_txt)) +
-    geom_line(aes(y = kc, colour = kc_txt)) +
-    geom_line(aes(y = kit, colour = kit_txt)) +
+    geom_line(aes(y = sno, colour = washington_snohomish_txt)) +
+    geom_line(aes(y = ic, colour = washington_island_txt)) +
+    geom_line(aes(y = ska, colour = washington_skagit_txt)) +
+    geom_line(aes(y = kc, colour = washington_king_txt)) +
+    geom_line(aes(y = kit, colour = washington_kitsap_txt)) +
     geom_vline(xintercept = as.Date(c("2021/04/24", "2021/04/09")), linetype =
                  "dashed") +
     geom_hline(yintercept = 200, linetype = "dashed") +
