@@ -43,6 +43,17 @@ buckets you could
 set the environment var somewhere else or do a similar wrapper for however your 
 running R.  
 
+Administrative Levels
+
+There is an effort to be more international and less US centric.  So, insteat of 
+States / Counties we're trying to use Admin Level 1 and Admin Level 2.  For now
+there is a mix.  
+
+Levels break down like this:
+country
+admin1 e.g. us state, cnd province
+admin2 e.g. us county, french departments
+
 Stuff in here:
 LICENSE - Apahce license
 README.md - this file
@@ -58,7 +69,12 @@ work_in_progress/ - mostly cruft
 
 Work to do:
 - refactor making maps
+- redo maps using something snazzy like leaflet for interactive maps
 - clean-up warnings from map making (probably suppressing wanrings on
 duplicating projections)
 - add more tests
 - clean-up or remove vaccination data
+- built_all_states - make wa_and to be more generic
+- pull all of the configuration of making graphs and maps out and 
+put in separate file.  maybe even make it explicit configuration.
+

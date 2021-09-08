@@ -175,9 +175,9 @@ newday <- function() {
   )
   global_confirmed_t$dates <<-
     as.Date(global_confirmed_t$dates,  format = "X%m.%d.%y")
-  global_confirmed_t$admin0 <<-
+  global_confirmed_t$country <<-
     tolower(global_confirmed_t$Country.Region)
-  admin0_t <<-
+  country_t <<-
     global_confirmed_t %>% 
     group_by(Country.Region, dates) %>%
     summarise(cases = sum(cases), .groups = 'drop')
@@ -248,9 +248,9 @@ get_vax_data <- function() {
 
 }
 
-get_pop_jhu <- function(province_state = "",
-                        country = "US",
-                        admin2 = "") {
+get_pop <- function(country = "US",
+                    admin1 = "",
+                    admin2 = "") {
   # legacy
   if (is.null(admin2)) {
     admin2 <- ""
@@ -262,17 +262,17 @@ get_pop_jhu <- function(province_state = "",
   if (is.null(country)) {
     country <- "US"
   }
-  if (is.null(province_state)) {
-    province_state <- ""
+  if (is.null(admin1)) {
+    admin1 <- ""
   }
 
   if (VERBOSE) {
     cat(
-      "get_pop_jhu: going to get pop for: country:",
+      "get_pop: going to get pop for: country:",
       country,
-      "state:",
-      province_state,
-      "admin2:",
+      "| admin1 / state:",
+      admin1,
+      "| admin2 / county:",
       admin2,
       "\n"
     )
@@ -281,7 +281,7 @@ get_pop_jhu <- function(province_state = "",
   row <- subset(
     uid_iso_fips_lookup,
     grepl(country, Country_Region, ignore.case = TRUE) &
-      grepl(province_state, Province_State, ignore.case = TRUE) &
+      grepl(admin1, Province_State, ignore.case = TRUE) &
       grepl(admin2, Admin2, ignore.case = TRUE)
   )
 
@@ -294,27 +294,6 @@ get_pop_jhu <- function(province_state = "",
   return(hundy)
 }
 
-get_pop <- function(state = NULL,
-                    county = NULL,
-                    country = NULL,
-                    province_state = NULL,
-                    admin2 = NULL) {
-  if (!is.null(province_state)) {
-    state <- province_state
-  }
-  if (!is.null(admin2)) {
-    county <- admin2
-  }
-  admin2 <- county
-  province_state <- state
-
-  return(get_pop_jhu(
-    country = country,
-    province_state = province_state,
-    admin2 = admin2
-  ))
-
-}
 
 # cleans-up some goofy county names - needed this with US Census pops and
 # election results
@@ -343,24 +322,29 @@ get_full_county_name <- function(state = "not alaska",  county) {
   return(full_county_name)
 }
 
-# a constructor function for the "place" class
-place <- function(place_name,
-                  admin_level,
-                  txt,
-                  df) {
-  # admin1 e.g. us state, cnd province
-  # admin2 e.g. us county
+# "place" class
+# admin1 e.g. us state, cnd province
+# admin2 e.g. us county
+place <- function(admin_level,
+                  country = "US",
+                  admin1,
+                  admin2) {
+
   ok_levels <- c("country", "admin1", "admin2")
-  if( ! admin_level %in% ok_levels ) {
+  if (!admin_level %in% ok_levels) {
     stop("need a correct administrative level")
   } 
-  obj <- list(name = place_name, 
+  obj <- list(country = country,
+              admin1 = admin1,
+              admin2 = admin2,
               level = admin_level, 
               txt = txt, 
               df = df)
   attr(obj, "class") <- "place"
-  obj
+  return(obj)
 }
+
+
 
 # old function where we only returned winning prez candidate
 get_2016_prez <- function(state, county) {
@@ -422,9 +406,13 @@ get_redblue <-  function(state, county) {
   get_redblue2016(state, county)
 }
 
+# takes any data frame (should be an object)
+# and makes a number of plots
+# this should be a method to places class
 make_plot <- function(df,
                       loc_txt,
                       main_txt = NULL,
+                      # plot types:
                       cases_per_hundy = TRUE,
                       cases = TRUE,
                       daily_cases = FALSE,
@@ -567,55 +555,8 @@ make_plot <- function(df,
   return(p)
 }
 
-multi_make_plot <- function(df,
-                            multi_cats,
-                            loc_txt = "loc_txt",
-                            main_txt = NULL,
-                            cases_per_hundy = TRUE,
-                            cases = TRUE,
-                            daily_cases = FALSE,
-                            file_base = NULL) {
-  p <- ggplot(data = df, aes(dates)) +
-    scale_color_manual(values = c("14 Day Average" = "red",
-                                  "Daily" = "mediumpurple1")) +
-    #   ylim(0,max(df$daily_cases)) +
-    labs(
-      title = paste(loc_txt, daily_c19_cases_txt),
-      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
-      x = "Dates",
-      y = ylab_daily_cases_txt
-    ) +
-    theme_bw() +
-    theme(
-      panel.grid.minor = element_blank(),
-      #            panel.grid.major = element_blank(),
-      panel.background = element_blank(),
-      plot.title = element_text(hjust = 0.5),
-      plot.subtitle = element_text(hjust = 0.5),
-      plot.caption = element_text(hjust = 0.5),
-      legend.title = element_blank(),
-      legend.position = c(0.35, 0.87),
-      legend.background = element_rect(
-        linetype = "solid",
-        size = 0.2,
-        colour = "black"
-      )
-    )
-  for (cat in multi_cats) {
-    p <- p + geom_line(aes(y = cat, colour = "Daily"), size = 0.3)
-  }
-
-
-  #    geom_line(aes(y = daily_cases_avrg14d, colour="14 Day Average"))
-
-  print(p)
-
-  if (!is.null(file_base)) {
-    dev.off()
-  }
-
-} # multi_make_plot
-
+# flesh out data frame with summary columns
+# build the data so it can be graphed or dumped out in a csv
 build_cols <- function(df, pop) {
   if (pop > 0) {
     df$pop <- pop
@@ -718,21 +659,33 @@ build_cols <- function(df, pop) {
 }
 
 # selects a county
-get_admin2 <- function(state, county) {
-  cat("in get_admin2(", county, ")\n")
+# county = admin level2
+# for now this probably doesn't work for non US divisions
+get_admin2 <- function(state_in, 
+                       county_in,
+                       country_in = "US") {
+  cat("building admin2: country:", 
+      country_in,
+      "| admin1 / state:",
+      state_in,
+      "| admin2 / county:",
+      county_in,
+      "\n")
 
-  if (county == "Total") {
+  if (county_in == "Total") {
     county_cases_t <- as.data.frame(subset(usa_states,
-                                           Province_State == state))
+                                           Province_State == state_in))
   }
   else {
     # convert into a data frame instead of a tuple.  tuple has big performance impacts down the road
     county_cases_t <-
-      as.data.frame(subset(usa_confirmed_t, Admin2 == county &
-                             Province_State == state))
+      as.data.frame(subset(usa_confirmed_t, Admin2 == county_in &
+                             Province_State == state_in))
   }
 
-  pop <- get_pop(state, county, country = "US")
+  pop <- get_pop(admin1 = state_in, 
+                 admin2 = county_in, 
+                 country = country_in)
 
   df <- build_cols(county_cases_t, pop)
 
@@ -744,6 +697,7 @@ write_csv_file <- function(df, file_base) {
   write.csv(df, paste(file_base, ".csv", sep = ""))
 }
 
+# maybe rip this all out?
 make_redblue_plot <- function(df,
                               loc_txt,
                               main_txt = NULL,
@@ -840,8 +794,15 @@ make_redblue_plot <- function(df,
 
 }
 
-
+# use this to combine places
+# as an example we aggreagate east and western Washington St
+# again, it should be a class method
+# 
+# This is a little table of data in class object and how they're
+# combined
+# 
 # var                           source          aggregate function
+#                           
 # pop                           get_pop         addition
 # cases                         something       addition
 # daily_cases                   something       addition
@@ -853,13 +814,9 @@ make_redblue_plot <- function(df,
 # daily_cases_per_hundy_avrg14  division        division
 #
 aggregate_dfs <- function(in_df, new_df) {
-  #    print(paste("in aggregate_dfs", in_df[nrow(in_df),"cases"], new_df[nrow(in_df),"cases"]))
-  #    print(paste("in aggregate_dfs", in_df[1,"pop"], new_df[1,"pop"]))
 
   for (r in 1:nrow(in_df)) {
-    #      print(paste("in:", in_df[r, "pop"], "new:", new_df[r, "pop"]))
     in_df[r, "pop"] <- in_df[r, "pop"] + new_df[r, "pop"]
-    #      print(paste("combined:", in_df[r, "pop"]))
 
     in_df[r, "cases"] <- in_df[r, "cases"] + new_df[r, "cases"]
     in_df[r, "cases_per_hundy"] <-
@@ -869,7 +826,6 @@ aggregate_dfs <- function(in_df, new_df) {
     in_df[r, "daily_cases_per_hundy"] <-
       in_df[r, "daily_cases"] / in_df[r, "pop"]
 
-    #      print(paste("where the fun starts", r))
     if (r < 7) {
       in_df[r, "daily_cases_avrg7d"] <- 0
       in_df[r, "daily_cases_per_hundy_avrg7d"] <- 0
@@ -877,9 +833,6 @@ aggregate_dfs <- function(in_df, new_df) {
       in_df[r, "daily_cases_per_hundy_sum7d"] <- 0
     }
     else {
-      #        print(in_df[(r-6):r, "daily_cases"])
-      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left"))
-      #        print(zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left")[0])
       in_df[r, "daily_cases_avrg7d"] <-
         zoo::rollmean(in_df[(r - 6):r, "daily_cases"],
                       k = 7,
@@ -918,19 +871,6 @@ aggregate_dfs <- function(in_df, new_df) {
         in_df[r, "daily_cases_sum14d"] / in_df[r, "pop"]
     }
 
-
-    #      in_df[r, "daily_cases_avrg7d"] <- in_df[r, "daily_cases_avrg7d"] +
-    #        new_df[r, "daily_cases_avrg7d"]
-    #      in_df[r, "daily_cases_avrg14d"] <- in_df[r, "daily_cases_avrg14d"] +
-    #        new_df[r, "daily_cases_avrg14d"]
-    #      in_df[r, "daily_cases_per_hundy_avrg7d"] <- in_df[r, "daily_cases_per_hundy_avrg7d"] +
-    #        new_df[r, "daily_cases_per_hundy_avrg7d"]
-    #      in_df[r, "daily_cases_per_hundy_avrg14d"] <- in_df[r, "daily_cases_per_hundy_avrg14d"] +
-    #        new_df[r, "daily_cases_per_hundy_avrg14d"]
-
-
-    #      print("kinda done")
-
     if (ENABLE_RED_BLUE) {
       in_df[r, "red_cases"] <-
         in_df[r, "red_cases"] + new_df[r, "red_cases"]
@@ -940,8 +880,6 @@ aggregate_dfs <- function(in_df, new_df) {
         in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- 0
       }
       else {
-        #        in_df[r, "red_daily_cases_avrg7d"] <- zoo::rollmean(in_df[(r-6):r, "daily_cases"], k = 7, fill = NA, align="left")[0]
-        #        in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- in_df[r, "red_daily_cases_avrg7d"] / in_df[r, "pop"]
       }
       if (r < 15) {
         in_df[r, "red_daily_cases_avrg14d"] <- 0
@@ -951,9 +889,6 @@ aggregate_dfs <- function(in_df, new_df) {
         #        in_df[r, "red_daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align="left")[0]
         #        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] / in_df[r, "pop"]
       }
-
-      #      in_df[r, "red_daily_cases_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] +
-      #        new_df[r, "red_daily_cases_avrg14d"]
 
       in_df[r, "red_daily_cases_per_hundy_avrg7d"] <-
         in_df[r, "red_daily_cases_per_hundy_avrg7d"] +
@@ -996,38 +931,35 @@ aggregate_dfs <- function(in_df, new_df) {
 
 }
 
-get_admin1 <- function(admin1,
-                       admin0 = "US") {
-  cat("in get_admin1, state:",
-      admin1,
-      "country:",
-      admin0,
+
+get_admin1 <- function(admin1_in,
+                       country_in = "US") {
+  cat("building admin1: country:", 
+      country_in,
+      "| admin1 / state:",
+      admin1_in,
       "\n")
 
-
-  if (admin0 == "US") {
+  if (country_in == "US") {
     state_cases_t <-
       as.data.frame(subset(
         usa_states,
-        grepl(admin1, Province_State, ignore.case = TRUE)
+        grepl(admin1_in, Province_State, ignore.case = TRUE)
       ))
   }
   else  {
-    country <-
-      admin0  #  ARRRG I don't understand why this is needed!!!!
     state_cases_t <- as.data.frame(subset(
       global_confirmed_t,
-      grepl(country,
+      grepl(country_in,
             Country.Region,
             ignore.case = TRUE) &
-        grepl(admin1,
+        grepl(admin1_in,
               Province.State,
               ignore.case = TRUE)
     ))
   }
 
-
-  pop <- get_pop(admin1, country = admin0)
+  pop <- get_pop(admin1 = admin1_in, country = country_in)
 
   df <- build_cols(state_cases_t, pop)
 
@@ -1035,13 +967,13 @@ get_admin1 <- function(admin1,
 
 }
 
-get_admin0 <- function(country_in) {
-  cat("in get_admin0:", country_in)
+get_country <- function(country_in) {
+  cat("in get_country:", country_in)
 
   # convert into a data frame instead of a tuple.
   # tuple has big performance impacts down the road
   country_cases_t <- as.data.frame(subset(
-    admin0_t,
+    country_t,
     grepl(country_in, Country.Region, ignore.case = TRUE)
   ))
 
@@ -1073,12 +1005,10 @@ build_all_counties <- function(state = "Washington",
       paste(ref_county, " County, ", state, " (pop=", pop_format(ref_cases$pop[1]), ")", sep = "")
   }
 
-  washington <-
-    as.data.frame(subset(usa_confirmed, Province_State == "Washington"))
+  state_df <-
+    as.data.frame(subset(usa_confirmed, Province_State == state))
 
-  counties <- unique(sort(washington$Admin2))
-
-  loc_txt = "Eastern / Western Washington"
+  counties <- unique(sort(state_df$Admin2))
 
   for (county in counties) {
     if (str_detect(county, "Out of ") |
@@ -1095,30 +1025,6 @@ build_all_counties <- function(state = "Washington",
 
     if (is.null(new_df)) {
       next
-    }
-
-    # if washington # add to east or west
-    if (state == "Washington") {
-      if (wa_counties[which(wa_counties$county == county),]$eastwest == "eastern") {
-        side = 'east'
-        if (exists("combined_east_df")) {
-          combined_east_df <- aggregate_dfs(combined_east_df, new_df)
-        }
-        else {
-          combined_east_df <- new_df
-        }
-      } else {
-        side = 'west'
-        if (exists("combined_west_df")) {
-          combined_west_df <- aggregate_dfs(combined_west_df, new_df)
-        }
-        else {
-          combined_west_df <- new_df
-        }
-      }
-      if (VERBOSE) {
-        cat(" which is ", side)
-      }
     }
 
     s_c = make_county_string(state, county)
@@ -1236,6 +1142,7 @@ build_all_counties <- function(state = "Washington",
   } # for all counties
 
 }
+
 make_state_string <- function(state) {
   s <- tolower(state)
   s <- str_replace_all(tolower(s), " ", "_")
@@ -1260,7 +1167,6 @@ build_all_states <- function(combined = TRUE,
   }
 
   states <- unique(sort(usa_confirmed$Province_State))
-
 
   for (state in states) {
     if (VERBOSE) {
@@ -1411,23 +1317,26 @@ wa_east_west <- function(plot_casesned = FALSE,
       next
     }
 
+    # get the county dataframe    
+    df_name <- tolower(paste(state, county, "df", sep = "_"))
+    df_name <- str_replace_all(df_name, "[ ]", "_")
+    df <- eval(parse(text = df_name))
+
     if (wa_counties[which(wa_counties$county == county),]$eastwest == "eastern") {
-      cat("east\n")
-      east_df <- get_admin2(state = state, county = county)
+      cat("aggregating", county, "east\n")
       if (exists("combined_east_df")) {
-        combined_east_df <- aggregate_dfs(combined_east_df, east_df)
+        combined_east_df <- aggregate_dfs(combined_east_df, df)
       }
       else {
-        combined_east_df <- east_df
+        combined_east_df <- df
       }
     } else {
-      cat("west\n")
-      west_df <- get_admin2(state = state, county = county)
+      cat("aggregating", county, "west\n")
       if (exists("combined_west_df")) {
-        combined_west_df <- aggregate_dfs(combined_west_df, west_df)
+        combined_west_df <- aggregate_dfs(combined_west_df, df)
       }
       else {
-        combined_west_df <- west_df
+        combined_west_df <- df
       }
     }
   }
@@ -1585,7 +1494,7 @@ mash_combined_key <- function(df) {
 mash_province_state_key <- function(df) {
   df$provincestatelc <- str_to_lower(df$Province_State)
   df$provincestatelc <- str_replace_all(df$provincestatelc, "[.]", "")
-  df$provincestatelc <-str_replace_all(df$provincestatelc, "[ ]", "")
+  df$provincestatelc <- str_replace_all(df$provincestatelc, "[ ]", "")
   return(df)
 }
 
@@ -1780,7 +1689,8 @@ transform_state <- function(object, rot, scale, shift){
     elide(shift = shift)
 }
 
-# manually construct insert boxes instead of map bboxes so they look nicer.
+# manually construct insert boxes instead of map bboxes so they 
+# look nicer.
 insert_boxes <- function(p) {
   lat <- c(38,38,33,33,33,33)
   long <- c(-73,-68,-68,-73,-73,-73)
@@ -1847,6 +1757,7 @@ insert_boxes <- function(p) {
 
 # a lot of manual tweaking to move non-conus states and territories
 # into insert positions
+# here 'cb' is census bureau
 load_cb_shapefile <- function(loc,
                               layer,
                               doing_state = TRUE,
@@ -1950,7 +1861,8 @@ load_cb_shapefile <- function(loc,
 
   polys <- spTransform(bound_df, CRS("+init=epsg:4326"))
   fortified <-
-    fortify(polys, region = "Combined_Key") %>% mutate(id = tolower(id))
+    fortify(polys, region = "Combined_Key") %>% 
+    mutate(id = tolower(id))
 
   return(fortified)
 
@@ -2062,7 +1974,7 @@ make_maps <- function() {
   counties_mapd <- mash_combined_key(counties_mapd)
 
   # add Province_State to make merging easier
-  # I guess keep this around for the borders
+  # we keep this around for the borders
   states$Province_State = str_to_title(states$region)
   states <- mash_province_state_key(states)
   states_merged <-
@@ -2084,11 +1996,6 @@ make_maps <- function() {
 
   wa_counties_mapd_merged <-
     subset(counties_mapd_merged, Province_State == "Washington")
-
-# counties usm  *************
-#  counties_usm$county_sans_county <- str_replace(counties_usm$county, " County", "")
-#  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Parish", "")
-#  counties_usm$county_sans_county <- str_replace(counties_usm$county_sans_county, " Borough", "")
 
   vax_states_merged <-
     inner_join(states, vax_us_wide, by = "Province_State")
@@ -2146,7 +2053,7 @@ make_maps <- function() {
     border1_color = "grey",
     border1_df = states50,
     border2_df = usa,
-    title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
+    title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "States"),
     add_insert_boxes = TRUE,
     filebase = "map_usa_14avrg"
   )
@@ -2160,7 +2067,7 @@ make_maps <- function() {
     border1_color = "grey",
     border1_df = states50,
     border2_df = usa,
-    title = paste("USA", main_14day_trend_txt, "States"),
+    title = paste("US", main_14day_trend_txt, "States"),
     add_insert_boxes = TRUE,
     filebase = "map_usa_trend"
   )
@@ -2175,7 +2082,7 @@ make_maps <- function() {
     border1_df = states50,
     border2_df = usa,
     add_insert_boxes = TRUE,
-    title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "States"),
+    title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "vax1"
   )
 
@@ -2202,7 +2109,7 @@ make_maps <- function() {
     key = "Combined_Key.x",
     lowpoint = 0,
     base = counties_base,
-    title = paste("USA", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
+    title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
     #    trans = "log10",
     border1_color = "grey",
     border1_df = states,
@@ -2217,7 +2124,7 @@ make_maps <- function() {
     key = "Combined_Key.x",
     midpoint = 0,
     base = counties_base,
-    title = paste("USA", main_14day_trend_txt, "Counties"),
+    title = paste("US", main_14day_trend_txt, "Counties"),
     border1_color = "grey",
     border1_df = states,
     border2_df = usa,
@@ -2252,31 +2159,31 @@ doit <- function() {
     )
     make_plot(
       usa_cases,
-      loc_txt = "USA",
+      loc_txt = "US",
       cases_per_hundy = TRUE,
       daily_cases = TRUE,
-      file_base = "USA"
+      file_base = "US"
     )
     file_to_bucket("USA_cases_per_hundy.jpg")
     file_to_bucket("USA_daily_cases.jpg")
   }
 
   b_co_cases <-
-    get_admin2("Maryland", "Baltimore")
+    get_admin2(state = "Maryland", county = "Baltimore")
   b_ci_cases <-
-    get_admin2("Maryland", "Baltimore City")
-  mad_cases <- get_admin2("Virginia", "Madison")
+    get_admin2(state = "Maryland", county = "Baltimore City")
+  mad_cases <- get_admin2(state = "Virginia", county="Madison")
   pennsylvania_allegheny_df <-
-    get_admin2("Pennsylvania", "Allegheny")
+    get_admin2(state = "Pennsylvania", county="Allegheny")
 
   ca_bc_cases <-
-    get_admin1(admin0 = "Canada", admin1 = "British Columbia")
+    get_admin1(country = "Canada", admin1 = "British Columbia")
   ca_bc_txt <-
     paste("British Columbia (pop=",
           pop_format(ca_bc_cases$pop[1]),
           ")",
           sep = "")
-  ca_on_cases <- get_admin1(admin0 = "Canada", admin1 = "Ontario")
+  ca_on_cases <- get_admin1(country = "Canada", admin1 = "Ontario")
 
   b_co_txt <-
     paste("Baltimore County, MD (pop=",
@@ -2300,10 +2207,80 @@ doit <- function() {
           sep = "")
   if (USA_ALL) {
     usa_txt <-
-      paste("USA (pop=", pop_format(usa_cases$pop[1]), ")", sep = "")
+      paste("US (pop=", pop_format(usa_cases$pop[1]), ")", sep = "")
   }
   #  india_txt <-
   #    paste("India (pop=", pop_format(india$pop[1]), ")", sep = "")
+
+  ##############################################################################
+  # manually combine into data frames to use for graphs
+  # fix this
+
+  temp_df_cases <- data.frame(
+    dates = washington_df$dates,
+    wa = washington_df$cases_per_hundy,
+    ic = washington_island_df$cases_per_hundy,
+    kc = washington_king_df$cases_per_hundy,
+    yak = washington_yakima_df$cases_per_hundy,
+    all = pennsylvania_allegheny_df$cases_per_hundy,
+    mad = mad_cases$cases_per_hundy,
+    sji = washington_san_juan_df$cases_per_hundy,
+    sno = washington_snohomish_df$cases_per_hundy,
+    ska = washington_skagit_df$cases_per_hundy,
+    jeff = washington_jefferson_df$cases_per_hundy,
+    kit = washington_kitsap_df$cases_per_hundy,
+    b_co = b_co_cases$cases_per_hundy,
+    b_ci = b_ci_cases$cases_per_hundy,
+    usa = usa_cases$cases_per_hundy
+  )
+  temp_df_avrg <- data.frame(
+    dates = washington_df$dates,
+    or = oregon_df$daily_cases_per_hundy_avrg14d,
+    mi = michigan_df$daily_cases_per_hundy_avrg14d,
+    wa = washington_df$daily_cases_per_hundy_avrg14d,
+    washington = washington_df$daily_cases_per_hundy_avrg14d,
+    ic = washington_island_df$daily_cases_per_hundy_avrg14d,
+    kc = washington_king_df$daily_cases_per_hundy_avrg14d,
+    ca = california_df$daily_cases_per_hundy_avrg14d,
+    md = maryland_df$daily_cases_per_hundy_avrg14d,
+    id = idaho_df$daily_cases_per_hundy_avrg14d,
+    ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
+    b_co = b_co_cases$daily_cases_per_hundy_avrg14d,
+    b_ci = b_ci_cases$daily_cases_per_hundy_avrg14d,
+    all = pennsylvania_allegheny_df$daily_cases_per_hundy_avrg14d,
+    mad = mad_cases$daily_cases_per_hundy_avrg14d,
+    sji = washington_san_juan_df$daily_cases_per_hundy_avrg14d,
+    sno = washington_snohomish_df$daily_cases_per_hundy_avrg14d,
+    ska = washington_skagit_df$daily_cases_per_hundy_avrg14d,
+    jeff = washington_jefferson_df$daily_cases_per_hundy_avrg14d,
+    kit = washington_kitsap_df$daily_cases_per_hundy_avrg14d,
+    usa = usa_cases$daily_cases_per_hundy_avrg14d,
+    nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
+    south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
+    montana = montana_df$daily_cases_per_hundy_avrg14d,
+    wyoming = wyoming_df$daily_cases_per_hundy_avrg14d,
+    colorado = colorado_df$daily_cases_per_hundy_avrg14d,
+    kansas = kansas_df$daily_cases_per_hundy_avrg14d,
+    missouri = missouri_df$daily_cases_per_hundy_avrg14d,
+    iowa = iowa_df$daily_cases_per_hundy_avrg14d,
+    florida = florida_df$daily_cases_per_hundy_avrg14d,
+    louisiana = louisiana_df$daily_cases_per_hundy_avrg14d,
+    alabama = alabama_df$daily_cases_per_hundy_avrg14d,
+    arkansas = arkansas_df$daily_cases_per_hundy_avrg14d,
+    georgia = georgia_df$daily_cases_per_hundy_avrg14d,
+    texas = texas_df$daily_cases_per_hundy_avrg14d,
+    wh = washington_whitman_df$daily_cases_per_hundy_avrg14d
+  )
+  temp_df_sum <- data.frame(
+    dates = washington_king_df$dates,
+    kc = washington_king_df$daily_cases_per_hundy_sum14d,
+    ic = washington_island_df$daily_cases_per_hundy_sum14d,
+    wa = washington_df$daily_cases_per_hundy_sum14d,
+    ska = washington_skagit_df$daily_cases_per_hundy_sum14d,
+    kit = washington_kitsap_df$daily_cases_per_hundy_sum14d,
+    sno = washington_snohomish_df$daily_cases_per_hundy_sum14d,
+    b_co = b_co_cases$daily_cases_per_hundy_sum14d
+  )
 
   ##############################################################################
   filename = "my_perhundy_select.jpg"
@@ -2327,31 +2304,11 @@ doit <- function() {
     "b_ci" = "solid"
   )
 
-  #   linetypes <- c("solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "solid", "dashed", "solid", "solid")
-  temp_df <- data.frame(
-    dates = washington_df$dates,
-    wa = washington_df$cases_per_hundy,
-    mt = montana_df$cases_per_hundy,
-    ic = washington_island_df$cases_per_hundy,
-    kc = washington_king_df$cases_per_hundy,
-    yak = washington_yakima_df$cases_per_hundy,
-    all = pennsylvania_allegheny_df$cases_per_hundy,
-    mad = mad_cases$cases_per_hundy,
-    sji = washington_san_juan_df$cases_per_hundy,
-    sno = washington_snohomish_df$cases_per_hundy,
-    ska = washington_skagit_df$cases_per_hundy,
-    jeff = washington_jefferson_df$cases_per_hundy,
-    kit = washington_kitsap_df$cases_per_hundy,
-    b_co = b_co_cases$cases_per_hundy,
-    b_ci = b_ci_cases$cases_per_hundy,
-    usa = usa_cases$cases_per_hundy
-  )
   p <-
-    ggplot(data = temp_df, aes(dates, linetypes = "linetypes")) +
+    ggplot(data = temp_df_cases, aes(dates, linetypes = "linetypes")) +
     geom_line(aes(y = ic, colour = washington_island_txt), linetype = "solid") +
     geom_line(aes(y = kc, colour = washington_king_txt), linetype = "solid") +
     geom_line(aes(y = wa, colour = washington_s_txt), linetype = "solid") +
-#    geom_line(aes(y = mt, colour = montana_s_txt), linetype = "solid") +
     geom_line(aes(y = b_co, colour = b_co_txt), linetype = "solid") +
     geom_line(aes(y = b_ci, colour = b_ci_txt), linetype = "solid") +
     geom_line(aes(y = kit, colour = washington_kitsap_txt), linetype = "solid") +
@@ -2386,7 +2343,9 @@ doit <- function() {
     #      scale_linetype_manual( values = linetypes ) +
     ylim(0, max(usa_cases$cases_per_hundy, na.rm = TRUE)) +
     labs(title = main_cases_hundy_txt,
-         subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+         subtitle = paste("created", 
+                          format(Sys.time(), 
+                                 "%m/%d/%Y %H:%M:%S")),
          x = "Dates",
          y = ylab_cases_hundy_txt) +
     theme_bw() +
@@ -2422,13 +2381,7 @@ doit <- function() {
 
   maxy = max(washington_whitman_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-  apple_df <- data.frame(
-    dates = washington_king_df$dates,
-    kc = washington_king_df$daily_cases_per_hundy_avrg14d,
-    wh = washington_whitman_df$daily_cases_per_hundy_avrg14d,
-    wa = washington_df$daily_cases_per_hundy_avrg14d
-  )
-  p <- ggplot(data = apple_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = kc, colour = washington_king_txt)) +
     geom_line(aes(y = wh, colour = washington_whitman_txt)) +
     scale_color_manual(values = c("purple", "darkred")) +
@@ -2546,15 +2499,7 @@ doit <- function() {
        height = plot_file_height)
   maxy = max(b_co_cases$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-
-  temp_df <- data.frame(
-    dates = washington_whitman_df$dates,
-    kc = washington_king_df$daily_cases_per_hundy_avrg14d,
-    ic = washington_island_df$daily_cases_per_hundy_avrg14d,
-    wa = washington_df$daily_cases_per_hundy_avrg14d,
-    b_co = b_co_cases$daily_cases_per_hundy_avrg14d
-  )
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = kc, colour = washington_king_txt)) +
     geom_line(aes(y = ic, colour = washington_island_txt)) +
     geom_line(aes(y = b_co, colour = b_co_txt)) +
@@ -2595,7 +2540,7 @@ doit <- function() {
   maxy <-
     max(washington_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
     geom_line(aes(y = ic, colour = washington_island_txt)) +
     geom_line(aes(y = kc, colour = washington_king_txt)) +
@@ -2634,16 +2579,6 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
 
-  temp_df_sum <- data.frame(
-    dates = washington_king_df$dates,
-    kc = washington_king_df$daily_cases_per_hundy_sum14d,
-    ic = washington_island_df$daily_cases_per_hundy_sum14d,
-    wa = washington_df$daily_cases_per_hundy_sum14d,
-    ska = washington_skagit_df$daily_cases_per_hundy_sum14d,
-    kit = washington_kitsap_df$daily_cases_per_hundy_sum14d,
-    sno = washington_snohomish_df$daily_cases_per_hundy_sum14d,
-    b_co = b_co_cases$daily_cases_per_hundy_sum14d
-  )
   maxy = max(washington_df$daily_cases_per_hundy_sum14d, na.rm = TRUE)
   today <- Sys.Date()
   start_graph <- today - months(2)
@@ -2705,33 +2640,7 @@ doit <- function() {
                   louisiana_df$daily_cases_per_hundy_avrg14d, florida_df$daily_cases_per_hundy_avrg14d)
   maxy = max(bigger, na.rm = TRUE)
 
-  temp_df <- data.frame(
-    dates = washington_df$dates,
-    or = oregon_df$daily_cases_per_hundy_avrg14d,
-    mi = michigan_df$daily_cases_per_hundy_avrg14d,
-    wa = washington_df$daily_cases_per_hundy_avrg14d,
-    washington = washington_df$daily_cases_per_hundy_avrg14d,
-    ca = california_df$daily_cases_per_hundy_avrg14d,
-    md = maryland_df$daily_cases_per_hundy_avrg14d,
-    id = idaho_df$daily_cases_per_hundy_avrg14d,
-    mt = montana_df$daily_cases_per_hundy_avrg14d,
-    ca_bc = ca_bc_cases$daily_cases_per_hundy_avrg14d,
-    usa = usa_cases$daily_cases_per_hundy_avrg14d,
-    nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
-    south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
-    wyoming = wyoming_df$daily_cases_per_hundy_avrg14d,
-    colorado = colorado_df$daily_cases_per_hundy_avrg14d,
-    kansas = kansas_df$daily_cases_per_hundy_avrg14d,
-    missouri = missouri_df$daily_cases_per_hundy_avrg14d,
-    iowa = iowa_df$daily_cases_per_hundy_avrg14d,
-    florida = florida_df$daily_cases_per_hundy_avrg14d,
-    louisiana = louisiana_df$daily_cases_per_hundy_avrg14d,
-    alabama = alabama_df$daily_cases_per_hundy_avrg14d,
-    arkansas = arkansas_df$daily_cases_per_hundy_avrg14d,
-    georgia = georgia_df$daily_cases_per_hundy_avrg14d,
-    texas = texas_df$daily_cases_per_hundy_avrg14d
-  )
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = florida, colour = florida_s_txt)) +
     geom_line(aes(y = louisiana, colour = louisiana_s_txt)) +
     geom_line(aes(y = alabama, colour = alabama_s_txt)) +
@@ -2783,10 +2692,10 @@ doit <- function() {
 
   maxy = max(montana_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = or, colour = oregon_s_txt)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
-    geom_line(aes(y = mt, colour = montana_s_txt)) +
+    geom_line(aes(y = montana, colour = montana_s_txt)) +
     geom_line(aes(y = mi, colour = michigan_s_txt)) +
     #      geom_line(aes(y = india, colour=india_txt)) +
     geom_line(aes(y = usa, colour = usa_txt), linetype = "dashed") +
@@ -2828,14 +2737,14 @@ doit <- function() {
   ##############################################################################
   # MISC2222222222222222222222
   # multiple counties 14 day
-  filename = "misc2.jpg"
+  filename = "misc2a.jpg"
   jpeg(filename = filename,
        width = plot_file_width,
        height = plot_file_height)
 
   maxy = max(california_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = or, colour = oregon_s_txt)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
     geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
@@ -2880,7 +2789,7 @@ doit <- function() {
 
   maxy = max(south_dakota_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
 
-  p <- ggplot(data = temp_df, aes(dates)) +
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = nebraska, colour = nebraska_s_txt)) +
     geom_line(aes(y = south_dakota, colour = south_dakota_s_txt)) +
     geom_line(aes(y = wyoming, colour = wyoming_s_txt)) +
