@@ -1944,21 +1944,23 @@ get_county_polygons <- function() {
   return(counties50new)
 }
 
-# mega map maker
+# make base maps
 # we get maps both from mapdata and census bureau shapefiles
-make_maps <- function() {
+make_map_bases <- function() {
 
-  # first get usa outline
-  usa <- map_data("usa")
+  # first get usa outline, make global
+  usa_mapd <- map_data("usa")
 
   # states outlines
-  states <- map_data("state")
+  # states_mapd is just CONUS and states50 is 50 states + inserts
+  states_mapd <- map_data("state")
   states50 <- get_states_polygons()
 
   # county outlines
-  counties <- get_county_polygons()
-  counties$Combined_Key <- counties$id
-  counties <- mash_combined_key(counties)
+  # counties50 is all 50 states + inserts
+  counties50 <- get_county_polygons()
+  counties50$Combined_Key <- counties50$id
+  counties50 <- mash_combined_key(counties50)
 
   # frankly the simple maps look better when blown-up
   # so we have both
@@ -1975,21 +1977,19 @@ make_maps <- function() {
 
   # add Province_State to make merging easier
   # we keep this around for the borders
-  states$Province_State = str_to_title(states$region)
-  states <- mash_province_state_key(states)
-  states_merged <-
-    inner_join(states, us_states_wide, by = "provincestatelc")
-  # use key = "Province_State"
+  states_mapd$Province_State = str_to_title(states_mapd$region)
+  states_mapd <- mash_province_state_key(states_mapd)
+  states_mapd_merged <-
+    inner_join(states_mapd, us_states_wide, by = "provincestatelc")
 
   # add Province_State to make merging easier
   states50$Province_State = str_to_title(states50$id)
   states50 <- mash_province_state_key(states50)
   states50_merged <-
     inner_join(states50, us_states_wide, by = "provincestatelc")
-  # use key = "Province_State"
 
-  counties_merged <-
-    inner_join(counties, us_counties_wide, by = "combinedkeylc")
+  counties50_merged <-
+    inner_join(counties50, us_counties_wide, by = "combinedkeylc")
 
   counties_mapd_merged <-
     inner_join(counties_mapd, us_counties_wide, by = "combinedkeylc")
@@ -1998,15 +1998,59 @@ make_maps <- function() {
     subset(counties_mapd_merged, Province_State == "Washington")
 
   vax_states_merged <-
-    inner_join(states, vax_us_wide, by = "Province_State")
+    inner_join(states_mapd, vax_us_wide, by = "Province_State")
   # use key = "Province_State"
 
-  wa_df <- subset(states, region == "washington")
+  wa_df <- subset(states_mapd, region == "washington")
   wa_base <-
     ggplot(data = wa_df,
            mapping = aes(x = long, y = lat, group = group)) +
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
+
+  states50_base <-
+    ggplot(data = states50,
+           mapping = aes(
+             x = long,
+             y = lat,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "white") +
+    coord_fixed(1.3)
+
+  # us county maps
+  counties50_base <-
+    ggplot(data = counties50_merged,
+           mapping = aes(
+             x = long,
+             y = lat,
+             group = factor(group)
+           )) +
+    geom_polygon(color = "black") +
+    coord_fixed(1.3)
+
+  # Nebraska puts all of there cases in 'Unassigned'
+  counties50_merged[counties50_merged$Province_State %in% "Nebraska", ]$avrg14_per_hundy <-
+    NA
+  counties50_merged[counties50_merged$Province_State %in% "Nebraska", ]$trend <-
+    NA
+
+  counties50_base <<- counties50_base
+  counties50_merged <<- counties50_merged
+  states50 <<- states50
+  states50_base <<- states50_base
+  states50_merged <<- states50_merged
+  states_mapd <<- states_mapd
+  usa_mapd <<- usa_mapd
+  vax_states_merged <<- vax_states_merged
+  wa_base <<- wa_base
+  wa_counties_mapd_merged <<- wa_counties_mapd_merged
+  wa_df <<- wa_df
+
+  return()
+}
+
+make_maps <- function() {
 
   make_a_map_from_base(
     df = wa_counties_mapd_merged,
@@ -2034,16 +2078,6 @@ make_maps <- function() {
     filebase = "map_wa_trend"
   )
 
-  states50_base <-
-    ggplot(data = states50,
-           mapping = aes(
-             x = long,
-             y = lat,
-             group = factor(group)
-           )) +
-    geom_polygon(color = "white") +
-    coord_fixed(1.3)
-
   make_a_map_from_base(
     df = states50_merged,
     var = "avrg14_per_hundy",
@@ -2052,7 +2086,7 @@ make_maps <- function() {
     base = states50_base,
     border1_color = "grey",
     border1_df = states50,
-    border2_df = usa,
+    border2_df = usa_mapd,
     title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "States"),
     add_insert_boxes = TRUE,
     filebase = "map_usa_14avrg"
@@ -2066,7 +2100,7 @@ make_maps <- function() {
     base = states50_base,
     border1_color = "grey",
     border1_df = states50,
-    border2_df = usa,
+    border2_df = usa_mapd,
     title = paste("US", main_14day_trend_txt, "States"),
     add_insert_boxes = TRUE,
     filebase = "map_usa_trend"
@@ -2080,54 +2114,37 @@ make_maps <- function() {
     base = states50_base,
     border1_color = "grey",
     border1_df = states50,
-    border2_df = usa,
+    border2_df = usa_mapd,
     add_insert_boxes = TRUE,
     title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "States"),
     filebase = "vax1"
   )
 
-  # us county maps
-  counties_base <-
-    ggplot(data = counties,
-           mapping = aes(
-             x = long,
-             y = lat,
-             group = factor(group)
-           )) +
-    geom_polygon(color = "black") +
-    coord_fixed(1.3)
-
-  # fucking Nebraska puts all of there cases in 'Unassigned'
-  counties_merged[counties_merged$Province_State %in% "Nebraska", ]$avrg14_per_hundy <-
-    NA
-  counties_merged[counties_merged$Province_State %in% "Nebraska", ]$trend <-
-    NA
-
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties50_merged,
     var = "avrg14_per_hundy",
     key = "Combined_Key.x",
     lowpoint = 0,
-    base = counties_base,
+    base = counties50_base,
     title = paste("US", main_daily_cases_hundy_14d_avrg_txt, "Counties"),
     #    trans = "log10",
     border1_color = "grey",
-    border1_df = states,
+    border1_df = states_mapd,
     add_insert_boxes = TRUE,
-    border2_df = usa,
+    border2_df = usa_mapd,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_14avrg_c"
   )
   make_a_map_from_base(
-    df = counties_merged,
+    df = counties50_merged,
     var = "trend",
     key = "Combined_Key.x",
     midpoint = 0,
-    base = counties_base,
+    base = counties50_base,
     title = paste("US", main_14day_trend_txt, "Counties"),
     border1_color = "grey",
-    border1_df = states,
-    border2_df = usa,
+    border1_df = states_mapd,
+    border2_df = usa_mapd,
     add_insert_boxes = TRUE,
     caption = "(black or grey represends missing data)",
     filebase = "map_usa_trend_c"

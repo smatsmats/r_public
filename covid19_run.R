@@ -44,6 +44,9 @@ cat("Population loaded\n")
 ret <- doit()
 
 ret <- prep_wide_data()
+ret <- make_map_bases()
 ret <- make_maps()
 
 warnings()
+
+

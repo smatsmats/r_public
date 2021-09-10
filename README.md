@@ -67,6 +67,11 @@ run_tests.sh - for testthat
 tests/ - directory for github actions tests
 work_in_progress/ - mostly cruft
 
+
+Notes on tigris
+To enable 
+caching of data, set `options(tigris_use_cache = TRUE)` in your R script or .Rprofile.
+
 Work to do:
 - refactor making maps
 - redo maps using something snazzy like leaflet for interactive maps
