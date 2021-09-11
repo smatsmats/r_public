@@ -34,3 +34,6 @@ install.packages("gpclib")
 
 # this needs to be explicitly updated
 install.packages("Rcpp")
+
+# tigris
+install.packages("tigris")

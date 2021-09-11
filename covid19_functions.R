@@ -23,6 +23,10 @@ library("maptools")
 library("gpclib")
 gpclibPermit()
 
+# use tigris for pullng cb shapfiles
+library("tigris")
+options(tigris_use_cache = TRUE)
+
 # design decisions
 # - don't combine plotting and making df"s
 # - except where it makes sense, i.e. build all states
