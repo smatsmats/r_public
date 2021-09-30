@@ -1767,80 +1767,81 @@ load_cb_shapefile <- function(loc,
                               doing_state = TRUE,
                               include_nmi = FALSE,
                               include_as = FALSE) {
-  sf_in <-
-    readOGR(dsn = loc,
-            layer = layer,
-            verbose = FALSE) %>% spTransform(CRS("+init=epsg:2163"))
+  if (doing_state) {
+    # want to switch over to using sf but for now sp
+    sp_in <- states(resolution = '5m', class = 'sp') %>% 
+      spTransform(CRS("+init=epsg:2163"))
 
   # mess with USVI name and make a combined key
-  if (doing_state) {
-    sf_in@data[sf_in$NAME == "United States Virgin Islands",]$NAME <-
+    sp_in@data[sp_in$NAME == "United States Virgin Islands",]$NAME <-
       'Virgin Islands'
-    sf_in$STATE_NAME <- sf_in$NAME
-    sf_in$Combined_Key <- tolower(sf_in$NAME)
+    sp_in$STATE_NAME <- sp_in$NAME
+    sp_in$Combined_Key <- tolower(sp_in$NAME)
   }
   else {
-    sf_in@data[sf_in$STATE_NAME == "United States Virgin Islands",]$STATE_NAME <-
+    sp_in <- counties(resolution = '5m', class = 'sp') %>% 
+      spTransform(CRS("+init=epsg:2163"))
+    sp_in@data[sp_in$STATE_NAME == "United States Virgin Islands",]$STATE_NAME <-
       'Virgin Islands'
-    sf_in@data[sf_in$STATE_NAME == "Virgin Islands",]$NAME <-
+    sp_in@data[sp_in$STATE_NAME == "Virgin Islands",]$NAME <-
       'Virgin Islands'
     # cb files are UTF-8, other data sources are not
-    sf_in@data$NAME <-
-      iconv(sf_in@data$NAME, "UTF-8", "ASCII//TRANSLIT")
-    sf_in@data$NAME <-
-      gsub("'", "" , sf_in@data$NAME, ignore.case = TRUE)
-    sf_in@data$NAME <-
-      gsub("~", "" , sf_in@data$NAME, ignore.case = TRUE)
-    sf_in@data$NAME <-
-      gsub('"', "" , sf_in@data$NAME, ignore.case = TRUE)
+    sp_in@data$NAME <-
+      iconv(sp_in@data$NAME, "UTF-8", "ASCII//TRANSLIT")
+    sp_in@data$NAME <-
+      gsub("'", "" , sp_in@data$NAME, ignore.case = TRUE)
+    sp_in@data$NAME <-
+      gsub("~", "" , sp_in@data$NAME, ignore.case = TRUE)
+    sp_in@data$NAME <-
+      gsub('"', "" , sp_in@data$NAME, ignore.case = TRUE)
 
-    sf_in$Combined_Key <- paste(str_to_title(sf_in$NAME),
+    sp_in$Combined_Key <- paste(str_to_title(sp_in$NAME),
                                 ", ",
-                                str_to_title(sf_in$STATE_NAME),
+                                str_to_title(sp_in$STATE_NAME),
                                 ", US",
                                 sep = "")
   }
 
-  alaska <- sf_in[sf_in$STATE_NAME == "Alaska",] %>%
+  alaska <- sp_in[sp_in$STATE_NAME == "Alaska",] %>%
     transform_state(-35, 2.5, c(-2400000,-2100000))
-  proj4string(alaska) <- proj4string(sf_in)
+  proj4string(alaska) <- proj4string(sp_in)
 
-  hawaii <- sf_in[sf_in$STATE_NAME == "Hawaii",] %>%
+  hawaii <- sp_in[sp_in$STATE_NAME == "Hawaii",] %>%
     transform_state(-35, .75, c(-1000000, -2373000))
-  proj4string(hawaii) <- proj4string(sf_in)
+  proj4string(hawaii) <- proj4string(sp_in)
 
-  dc <- sf_in[sf_in$STATE_NAME == "District of Columbia",] %>%
+  dc <- sp_in[sp_in$STATE_NAME == "District of Columbia",] %>%
     transform_state(0, .1, c(2525000, -700000))
-  proj4string(dc) <- proj4string(sf_in)
+  proj4string(dc) <- proj4string(sp_in)
 
-  pr <- sf_in[sf_in$STATE_NAME == "Puerto Rico",] %>%
+  pr <- sp_in[sp_in$STATE_NAME == "Puerto Rico",] %>%
     transform_state(0, .5, c(2500000, -1250000))
-  proj4string(pr) <- proj4string(sf_in)
+  proj4string(pr) <- proj4string(sp_in)
 
-  guam <- sf_in[sf_in$STATE_NAME == "Guam",] %>%
+  guam <- sp_in[sp_in$STATE_NAME == "Guam",] %>%
     transform_state(0, .25, c(-2200000, -1400000))
-  proj4string(guam) <- proj4string(sf_in)
+  proj4string(guam) <- proj4string(sp_in)
 
-  usvi <- sf_in[sf_in$STATE_NAME == "Virgin Islands",] %>%
+  usvi <- sp_in[sp_in$STATE_NAME == "Virgin Islands",] %>%
     transform_state(0, .25, c(2800000, -1800000))
-  proj4string(usvi) <- proj4string(sf_in)
+  proj4string(usvi) <- proj4string(sp_in)
 
 
   if (include_as) {
-    as <- sf_in[sf_in$STATE_NAME == "American Samoa",] %>%
+    as <- sp_in[sp_in$STATE_NAME == "American Samoa",] %>%
       transform_state(0, 1, c(5500000, 2200000))
-    proj4string(as) <- proj4string(sf_in)
+    proj4string(as) <- proj4string(sp_in)
   }
 
   if (include_nmi) {
     nmi <-
-      sf_in[sf_in$STATE_NAME == "Commonwealth of the Northern Mariana Islands",] %>%
+      sp_in[sp_in$STATE_NAME == "Commonwealth of the Northern Mariana Islands",] %>%
       transform_state(0, .5, c(3000000, -300000))
-    proj4string(nmi) <- proj4string(sf_in)
+    proj4string(nmi) <- proj4string(sp_in)
   }
 
   bound_df <-
-    sf_in[!sf_in$STATE_NAME %in% c(
+    sp_in[!sp_in$STATE_NAME %in% c(
       "Alaska",
       "Hawaii",
       "Guam",
@@ -1954,6 +1955,7 @@ make_map_bases <- function() {
 
   # first get usa outline, make global
   usa_mapd <- map_data("usa")
+ # usa_mapd <- national()
 
   # states outlines
   # states_mapd is just CONUS and states50 is 50 states + inserts
