@@ -36,4 +36,6 @@ install.packages("gpclib")
 install.packages("Rcpp")
 
 # tigris
+# may need this:
+# sudo apt-get install libudunits2-dev
 install.packages("tigris")
