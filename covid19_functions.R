@@ -2600,7 +2600,7 @@ doit <- function() {
        width = plot_file_width,
        height = plot_file_height)
 
-  maxy = max(washington_df$daily_cases_per_hundy_sum14d, na.rm = TRUE)
+  maxy = max(washington_skagit_df$daily_cases_per_hundy_sum14d, na.rm = TRUE)
   today <- Sys.Date()
   start_graph <- today - months(2)
 
