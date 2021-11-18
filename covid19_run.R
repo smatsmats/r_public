@@ -1,4 +1,5 @@
 source("./covid19_functions.R")
+source("./covid19_mygraphs.R")
 
 # tmp goes in tmp, everything is tmp
 setwd("/tmp")
@@ -41,7 +42,7 @@ cat("Newday loaded\n")
 population <- get_population()
 cat("Population loaded\n")
 
-ret <- doit()
+ret <- mygraphs()
 
 ret <- prep_wide_data()
 ret <- make_map_bases()
