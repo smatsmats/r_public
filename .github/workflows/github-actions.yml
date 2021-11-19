@@ -32,6 +32,7 @@ jobs:
           libgeos-dev \
           libgdal26 \
           libgdal-dev \
+          libudunits2-dev \
           git \
           curl \
           libssl-dev \
