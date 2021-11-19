@@ -7,10 +7,12 @@ didn't include Alaska, Hawaii, and the major US territories.  So, I made insert 
 for those as well as an insert for DC which is often invisible.  
 
 The site for my graphs and maps is
-https://sites.google.com/site/salishseacam/covid19?authuser=0
+https://sites.google.com/site/salishseacam/covid19
 
-It would be relatively easy for someone to pick this up and modify it to make the 
-graphs they are interested in.
+To run from the command line without adding environment variables:
+Rscript covid19_run.R
+
+It can be modified it to make the graphs others are interested in.
 
 CSV files of the data used are published along side the graphs
 
@@ -82,4 +84,6 @@ duplicating projections)
 - built_all_states - make wa_and to be more generic
 - pull all of the configuration of making graphs and maps out and 
 put in separate file.  maybe even make it explicit configuration.
+- make it a package
+- maybe used the new york times curated data?
 
