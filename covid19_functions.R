@@ -1966,6 +1966,8 @@ make_map_bases <- function() {
   # frankly the simple maps look better when blown-up
   # so we have both
   counties_mapd <- map_data("county")
+  # always having to 'fix' dc
+  counties_mapd[counties_mapd$region %in% "district of columbia",]$subregion <- "district of columbia"
   # make a combined key that matches our data
   counties_mapd$Combined_Key <- paste(
       str_to_title(counties_mapd$subregion),
@@ -1997,7 +1999,12 @@ make_map_bases <- function() {
 
   wa_counties_mapd_merged <-
     subset(counties_mapd_merged, Province_State == "Washington")
-
+  mddcva_counties_mapd_merged <<-
+    subset(counties_mapd_merged, 
+           Province_State == "Maryland" | 
+             Province_State == "Virginia" | 
+             Province_State == "District of Columbia")
+  
   vax_states_merged <-
     inner_join(states_mapd, vax_us_wide, by = "Province_State")
   # use key = "Province_State"
@@ -2009,6 +2016,16 @@ make_map_bases <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
 
+  mddcva_df <<- subset(states_mapd, 
+                    region == "maryland" | 
+                      region == "district of columbia" |
+                      region == "virginia")
+  mddcva_base <<-
+    ggplot(data = mddcva_df,
+           mapping = aes(x = long, y = lat, group = group)) +
+    coord_fixed(1.3) +
+    geom_polygon(color = "black", fill = "gray")
+  
   states50_base <-
     ggplot(data = states50,
            mapping = aes(
@@ -2079,6 +2096,32 @@ make_maps <- function() {
     filebase = "map_wa_trend"
   )
 
+  make_a_map_from_base(
+    df = mddcva_counties_mapd_merged,
+    key = "Combined_Key.x",
+    var = "avrg14_per_hundy",
+    base = mddcva_base,
+    lowpoint = 0,
+    border1_color = "grey",
+    border1_df = mddcva_counties_mapd_merged,
+    border2_df = mddcva_df,
+    title = paste("Maryland, DC, & Virginia",
+                  main_daily_cases_hundy_14d_avrg_txt),
+    filebase = "map_mddcva_14avrg"
+  )
+  make_a_map_from_base(
+    df = mddcva_counties_mapd_merged,
+    var = "trend",
+    key = "Combined_Key.x",
+    midpoint = 0,
+    border1_color = "grey",
+    border1_df = mddcva_counties_mapd_merged,
+    border2_df = mddcva_df,
+    base = mddcva_base,
+    title = paste("Maryland, DC, Virginia", main_14day_trend_txt),
+    filebase = "map_mddcva_trend"
+  )
+  
   make_a_map_from_base(
     df = states50_merged,
     var = "avrg14_per_hundy",
