@@ -1950,12 +1950,12 @@ get_county_polygons <- function() {
 make_map_bases <- function() {
 
   # first get usa outline, make global
-  usa_mapd <- map_data("usa")
+  usa_mapd <<- map_data("usa")
 
   # states outlines
   # states_mapd is just CONUS and states50 is 50 states + inserts
   states_mapd <- map_data("state")
-  states50 <- get_states_polygons()
+  states50 <<- get_states_polygons()
 
   # county outlines
   # counties50 is all 50 states + inserts
@@ -1982,13 +1982,15 @@ make_map_bases <- function() {
   # we keep this around for the borders
   states_mapd$Province_State = str_to_title(states_mapd$region)
   states_mapd <- mash_province_state_key(states_mapd)
+  # this fails:
   states_mapd_merged <-
     inner_join(states_mapd, us_states_wide, by = "provincestatelc")
+  states_mapd <<- states_mapd
 
   # add Province_State to make merging easier
   states50$Province_State = str_to_title(states50$id)
   states50 <- mash_province_state_key(states50)
-  states50_merged <-
+  states50_merged <<-
     inner_join(states50, us_states_wide, by = "provincestatelc")
 
   counties50_merged <-
@@ -1997,7 +1999,7 @@ make_map_bases <- function() {
   counties_mapd_merged <-
     inner_join(counties_mapd, us_counties_wide, by = "combinedkeylc")
 
-  wa_counties_mapd_merged <-
+  wa_counties_mapd_merged <<-
     subset(counties_mapd_merged, Province_State == "Washington")
   mddcva_counties_mapd_merged <<-
     subset(counties_mapd_merged, 
@@ -2005,12 +2007,12 @@ make_map_bases <- function() {
              Province_State == "Virginia" | 
              Province_State == "District of Columbia")
   
-  vax_states_merged <-
+  vax_states_merged <<-
     inner_join(states_mapd, vax_us_wide, by = "Province_State")
   # use key = "Province_State"
 
-  wa_df <- subset(states_mapd, region == "washington")
-  wa_base <-
+  wa_df <<- subset(states_mapd, region == "washington")
+  wa_base <<-
     ggplot(data = wa_df,
            mapping = aes(x = long, y = lat, group = group)) +
     coord_fixed(1.3) +
@@ -2026,7 +2028,7 @@ make_map_bases <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
   
-  states50_base <-
+  states50_base <<-
     ggplot(data = states50,
            mapping = aes(
              x = long,
@@ -2037,7 +2039,7 @@ make_map_bases <- function() {
     coord_fixed(1.3)
 
   # us county maps
-  counties50_base <-
+  counties50_base <<-
     ggplot(data = counties50_merged,
            mapping = aes(
              x = long,
@@ -2047,24 +2049,19 @@ make_map_bases <- function() {
     geom_polygon(color = "black") +
     coord_fixed(1.3)
 
+  # grey out states that aren't sending-up data
   # Nebraska puts all of there cases in 'Unassigned'
-  counties50_merged[counties50_merged$Province_State %in% "Nebraska", ]$avrg14_per_hundy <-
-    NA
-  counties50_merged[counties50_merged$Province_State %in% "Nebraska", ]$trend <-
-    NA
-
-  counties50_base <<- counties50_base
+  # Maryland got hacked
+  for (s in config$bad_data_states) {
+    counties50_merged[counties50_merged$Province_State 
+                      %in% s, ]$avrg14_per_hundy <- NA
+    counties50_merged[counties50_merged$Province_State 
+                      %in% s, ]$trend <- NA
+    
+  }
+  
   counties50_merged <<- counties50_merged
-  states50 <<- states50
-  states50_base <<- states50_base
-  states50_merged <<- states50_merged
-  states_mapd <<- states_mapd
-  usa_mapd <<- usa_mapd
-  vax_states_merged <<- vax_states_merged
-  wa_base <<- wa_base
-  wa_counties_mapd_merged <<- wa_counties_mapd_merged
-  wa_df <<- wa_df
-
+  
   return()
 }
 

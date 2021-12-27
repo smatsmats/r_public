@@ -1,0 +1,20 @@
+#%YAML 1.2
+#---
+
+test:
+    tmpdir: '/tmp'
+
+    use_jhu_pops: TRUE     # don't use populations directly from census
+    enable_red_blue: FALSE
+    usa_all: TRUE
+    use_ggplot: TRUE       # versus base graphs
+    verbose: FALSE
+    keep_files: FALSE      # don't remove files after being pushed
+
+    bad_data_states: 
+    - Maryland
+    - Nebraska
+    bad_data_counties: 
+    - 'Baltimore, Maryland'
+
+prod:

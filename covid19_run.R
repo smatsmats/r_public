@@ -1,8 +1,20 @@
 source("./covid19_functions.R")
 source("./covid19_mygraphs.R")
 
+library("yaml")
+
+mode <- 'test'
+
+c <- read_yaml("/Users/willey/r_public/covid19_config.yml")
+
+if ( mode == 'test' ) {
+  config <- c$test
+} else if ( mode == 'prod' ) {
+  config <- c$prod
+}
+
 # tmp goes in tmp, everything is tmp
-setwd("/tmp")
+setwd(config$tmpdir)
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
@@ -21,12 +33,12 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 }
 
 # Some flags
-USE_JHU_POPS <- TRUE     # don't use populations directly from census
-ENABLE_RED_BLUE <- FALSE
-USA_ALL <- TRUE
-USE_GGPLOT <- TRUE       # versus base graphs
-VERBOSE <- FALSE
-KEEP_FILES <- FALSE      # don't remove files after being pushed
+USE_JHU_POPS <- config$use_jhu_pops     # don't use populations directly from census
+ENABLE_RED_BLUE <- config$enable_red_blue
+USA_ALL <- config$usa_all
+USE_GGPLOT <- config$use_ggplot       # versus base graphs
+VERBOSE <- config$verbose
+KEEP_FILES <- config$keep_files      # don't remove files after being pushed
 
 cat("Code loaded\n")
 
