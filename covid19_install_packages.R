@@ -30,7 +30,6 @@ install.packages("rgeos")
 install.packages("rgdal")
 install.packages("maptools")
 install.packages("mapproj")
-install.packages("gpclib")
 
 # this needs to be explicitly updated
 install.packages("Rcpp")
