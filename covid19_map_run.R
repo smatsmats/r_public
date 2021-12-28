@@ -4,7 +4,7 @@ library("yaml")
 
 mode <- 'test'
 
-c <- read_yaml("/Users/willey/r_public/covid19_config.yml")
+c <- read_yaml("./covid19_config.yml")
 
 if ( mode == 'test' ) {
   config <- c$test
