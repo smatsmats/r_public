@@ -20,8 +20,6 @@ library("mapdata")
 library("rgeos")
 library("rgdal")
 library("maptools")
-library("gpclib")
-gpclibPermit()
 
 # use tigris for pullng cb shapfiles
 library("tigris")
