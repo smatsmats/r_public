@@ -474,7 +474,12 @@ mygraphs <- function() {
        width = plot_file_width,
        height = plot_file_height)
   maxy <-
-    max(washington_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+    max(washington_df$daily_cases_per_hundy_avrg14d, 
+        washington_island_df$daily_cases_per_hundy_avrg14d,
+        washington_king_df$daily_cases_per_hundy_avrg14d,
+        washington_snohomish_df$daily_cases_per_hundy_avrg14d,
+        washington_skagit_df$daily_cases_per_hundy_avrg14d,
+        na.rm = TRUE)
 
   p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
