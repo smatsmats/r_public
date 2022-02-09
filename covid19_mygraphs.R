@@ -477,10 +477,9 @@ mygraphs <- function() {
     max(washington_df$daily_cases_per_hundy_avrg14d, 
         washington_island_df$daily_cases_per_hundy_avrg14d,
         washington_king_df$daily_cases_per_hundy_avrg14d,
-        washington_snohomish_df$daily_cases_per_hundy_avrg14d,
-        washington_skagit_df$daily_cases_per_hundy_avrg14d,
         na.rm = TRUE)
 
+  cat("max y ", maxy, "\n")
   p <- ggplot(data = temp_df_avrg, aes(dates)) +
     geom_line(aes(y = wa, colour = washington_s_txt)) +
     geom_line(aes(y = ic, colour = washington_island_txt)) +
@@ -520,7 +519,13 @@ mygraphs <- function() {
        width = plot_file_width,
        height = plot_file_height)
 
-  maxy = max(washington_skagit_df$daily_cases_per_hundy_sum14d, na.rm = TRUE)
+  maxy = max(washington_skagit_df$daily_cases_per_hundy_sum14d,
+             washington_snohomish_df$daily_cases_per_hundy_sum14d,
+             washington_island_df$daily_cases_per_hundy_sum14d,
+             washington_kistsap_df$daily_cases_per_hundy_sum14d,
+             washington_king_df$daily_cases_per_hundy_sum14d,
+             na.rm = TRUE)
+  cat("max y ", maxy, "\n")
   today <- Sys.Date()
   start_graph <- today - months(2)
 
