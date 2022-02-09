@@ -522,7 +522,7 @@ mygraphs <- function() {
   maxy = max(washington_skagit_df$daily_cases_per_hundy_sum14d,
              washington_snohomish_df$daily_cases_per_hundy_sum14d,
              washington_island_df$daily_cases_per_hundy_sum14d,
-             washington_kistsap_df$daily_cases_per_hundy_sum14d,
+             washington_kitsap_df$daily_cases_per_hundy_sum14d,
              washington_king_df$daily_cases_per_hundy_sum14d,
              na.rm = TRUE)
   cat("max y ", maxy, "\n")
