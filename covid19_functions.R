@@ -520,7 +520,7 @@ make_plot <- function(df,
       scale_x_date(name = "Dates") +
       scale_y_continuous(
         name =  ylab_daily_cases_hundy_txt,
-        limits = c(0, max(df$daily_cases_per_hundy)),
+        limits = c(0, max(df$daily_cases_per_hundy_avrg14d)),
         sec.axis = sec_axis(trans =  ~ . * 14, name = "14 Day Sum / 100,000 Population")
       ) +
       theme_bw() +
