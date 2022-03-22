@@ -12,7 +12,6 @@ test:
     keep_files: FALSE      # don't remove files after being pushed
 
     bad_data_states: 
-    - Maryland
     - Nebraska
     bad_data_counties: 
     - 'Baltimore, Maryland'
