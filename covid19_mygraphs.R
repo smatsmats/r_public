@@ -540,7 +540,8 @@ mygraphs <- function() {
     geom_hline(yintercept = 200, linetype = "dashed") +
     # geom_hline(yintercept = c(200, 150)) +
     scale_color_manual(values = c("blue", "green", "yellow", "purple", "pink")) +
-    ylim(0, maxy) +
+#    ylim(0, maxy) +
+    ylim(0, 1000) +
     scale_x_date(
       date_breaks = "3 week",
       labels = date_format("%b-%d-%Y"),
