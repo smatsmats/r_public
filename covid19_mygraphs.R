@@ -26,7 +26,6 @@ library("tigris")
 options(tigris_use_cache = TRUE)
 
 # Some flags
-ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
@@ -55,7 +54,6 @@ cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
 daily_c19_cases_txt <- "Daily COVID-19 Cases"
 fourteen_day_avrg_txt <- "14day Average"
 fourteen_day_sum_txt <- "14day Sum"
-redblue_txt <- "Red / Blue"
 hundy_txt <- "per 100,000"
 main_daily_cases_hundy_txt <- paste(daily_c19_cases_txt, hundy_txt)
 main_daily_cases_hundy_14d_avrg_txt <-

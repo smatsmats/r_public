@@ -32,7 +32,6 @@ options(tigris_use_cache = TRUE)
 #
 
 # Some flags
-ENABLE_RED_BLUE <- FALSE
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
@@ -61,7 +60,6 @@ cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
 daily_c19_cases_txt <- "Daily COVID-19 Cases"
 fourteen_day_avrg_txt <- "14day Average"
 fourteen_day_sum_txt <- "14day Sum"
-redblue_txt <- "Red / Blue"
 hundy_txt <- "per 100,000"
 main_daily_cases_hundy_txt <- paste(daily_c19_cases_txt, hundy_txt)
 main_daily_cases_hundy_14d_avrg_txt <-
@@ -128,16 +126,6 @@ state_pop_txt <- function(s, df) {
 onetime <- function() {
   # some datasets
   # 2016 presidential election results, by county
-  if (ENABLE_RED_BLUE) {
-    prez_2016 <<-
-      read.csv(
-        "https://raw.githubusercontent.com/mkearney/presidential_election_county_results_2016/master/pres.elect16.results.dec9.csv"
-      )
-    prez_2020 <<-
-      read.csv(
-        "https://github.com/kjhealy/us_elections_2020_csv/raw/master/results_current.csv"
-      )
-  }
 
   # info on wa counties
   wa_counties <<-
@@ -364,47 +352,6 @@ get_2016_prez <- function(state, county) {
   }
 }
 
-get_redblue2016 <- function(state, county) {
-  red_cand <- "Donald Trump"
-  blue_cand <- "Hillary Clinton"
-  if (state == "Louisiana") {
-    mycounty <- paste(county, "Parish")
-  } else {
-    mycounty <- get_full_county_name(state, county)
-  }
-
-  if (state == "District of Columbia") {
-    red_pct_t <- subset(prez_2016, county == state &
-                          cand == red_cand)$pct[1]
-    blue_pct_t <- subset(prez_2016, county == state &
-                           cand == blue_cand)$pct[1]
-
-  } else if (state == "Alaska" || state == "District of Columbia") {
-    red_pct_t <- subset(prez_2016, state.name == state &
-                          cand == red_cand)$pct[1]
-    blue_pct_t <- subset(prez_2016, state.name == state &
-                           cand == blue_cand)$pct[1]
-
-  } else {
-    red_pct_t <- subset(prez_2016,
-                        state.name == state &
-                          county == mycounty &
-                          cand == red_cand)$pct[1]
-    blue_pct_t <- subset(prez_2016,
-                         state.name == state &
-                           county == mycounty &
-                           cand == blue_cand)$pct[1]
-  }
-  #  print(paste(red_pct_t, blue_pct_t, ","))
-  red_pct <- red_pct_t / (red_pct_t + blue_pct_t)
-  blue_pct <- blue_pct_t / (red_pct_t + blue_pct_t)
-  return(c(red_pct, blue_pct))
-}
-
-get_redblue <-  function(state, county) {
-  get_redblue2016(state, county)
-}
-
 # takes any data frame (should be an object)
 # and makes a number of plots
 # this should be a method to places class
@@ -616,44 +563,6 @@ build_cols <- function(df, pop) {
     df$daily_cases_per_hundy_sum14d <- 0
   }
 
-  if (ENABLE_RED_BLUE) {
-    red_blue_pcts <- get_redblue(state, county)
-
-    df$red_cases <- df$cases * red_blue_pcts[1]
-    df$red_daily_cases <-
-      df$daily_cases * red_blue_pcts[1]
-
-    df$red_daily_cases_avrg7d <-
-      df$daily_cases_avrg7d * red_blue_pcts[1]
-    df$red_daily_cases_avrg14d <-
-      df$daily_cases_avrg14d * red_blue_pcts[1]
-    df$red_daily_cases_per_hundy_avrg7d <-
-      df$daily_cases_per_hundy_avrg7d * red_blue_pcts[1]
-    df$red_daily_cases_per_hundy_avrg14d <-
-      df$daily_cases_per_hundy_avrg14d * red_blue_pcts[1]
-
-    df$red_pop <- df$pop * red_blue_pcts[1]
-    df$red_cases_per_hundy <- df$cases_per_hundy * red_blue_pcts[1]
-    ifelse(df$red_cases_per_hundy < 0, 0, df$red_cases_per_hundy)
-
-    df$blue_cases <- df$cases * red_blue_pcts[2]
-    df$blue_daily_cases <-
-      df$daily_cases * red_blue_pcts[2]
-
-    df$blue_daily_cases_avrg7d <-
-      df$daily_cases_avrg7d * red_blue_pcts[1]
-    df$blue_daily_cases_avrg14d <-
-      df$daily_cases_avrg14d * red_blue_pcts[1]
-    df$blue_daily_cases_per_hundy_avrg7d <-
-      df$daily_cases_per_hundy_avrg7d * red_blue_pcts[1]
-    df$blue_daily_cases_per_hundy_avrg14d <-
-      df$daily_cases_per_hundy_avrg14d * red_blue_pcts[1]
-
-    df$blue_pop <- df$pop * red_blue_pcts[2]
-    df$blue_cases_per_hundy <- df$cases_per_hundy * red_blue_pcts[2]
-    ifelse(df$blue_cases_per_hundy < 0, 0, df$blue_cases_per_hundy)
-  } #enable red blue
-
   return(df)
 }
 
@@ -694,103 +603,6 @@ get_admin2 <- function(state_in,
 
 write_csv_file <- function(df, file_base) {
   write.csv(df, paste(file_base, ".csv", sep = ""))
-}
-
-# maybe rip this all out?
-make_redblue_plot <- function(df,
-                              loc_txt,
-                              main_txt = NULL,
-                              cases_per_hundy = TRUE,
-                              cases = TRUE,
-                              file_base = NULL) {
-  # maybe bail
-  if (is.null(df)) {
-    return(NULL)
-  }
-
-  # maybe override the global cumulative_c19_cases_txt
-  if (!is.null(main_txt)) {
-    cumulative_c19_cases_txt = main_txt
-  }
-
-  max_red <- 0
-  max_blue <- 0
-  try(max_red <- max(df$red_cases), silent = TRUE)
-  try(max_blue <- max(df$blue_cases), silent = TRUE)
-  max_y <- ifelse(max_red > max_blue, max_red, max_blue)
-
-  max_red_cases_per_hundy <- 0
-  max_blue_cases_per_hundy <- 0
-  try(max_red_cases_per_hundy <-
-        max(df$red_cases_per_hundy, 1),
-      silent = TRUE)
-  try(max_blue_cases_per_hundy <-
-        max(df$blue_cases_per_hundy, 1),
-      silent = TRUE)
-  max_y_cases_per_hundy <-
-    ifelse(
-      max_red_cases_per_hundy > max_blue_cases_per_hundy,
-      max_red_cases_per_hundy,
-      max_blue_cases_per_hundy
-    )
-  #  print(max(df$red_per_hund, 1))
-  #  print(paste(max_red_cases_per_hundy, max_blue_cases_per_hundy,max_y_cases_per_hundy, sep=", "))
-  if (cases_per_hundy) {
-    if (!is.null(file_base)) {
-      f <- paste(file_base, "_cases_per_hundy", ".jpg", sep = "")
-      jpeg(filename = f,
-           width = plot_file_width,
-           height = plot_file_height)
-    }
-    plot(
-      df$dates,
-      df$red_cases_per_hundy,
-      main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt, hundy_txt),
-      ylab = ylab_cases_hundy_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "red",
-      ylim = c(0, max_y_cases_per_hundy),
-      xlim = as.Date(c(plot_start_date, plot_end_date))
-    )
-    if (max_blue_cases_per_hundy > 0) {
-      lines(df$dates, df$blue_cases_per_hundy, col = "blue")
-    }
-    if (!is.null(file_base)) {
-      dev.off()
-    }
-
-  }
-
-  if (cases) {
-    if (!is.null(file_base)) {
-      f <- paste(file_base, "_cases", ".jpg", sep = "")
-      jpeg(filename = f,
-           width = plot_file_width,
-           height = plot_file_height)
-      #      print("on 2")
-    }
-    plot(
-      df$dates,
-      df$red_cases,
-      main = paste(loc_txt, redblue_txt, cumulative_c19_cases_txt),
-      ylab = ylab_cases_txt,
-      xlab = "Dates",
-      type = "l",
-      col = "red",
-      ylim = c(0, max_y),
-      xlim = as.Date(c(plot_start_date, plot_end_date))
-    )
-    if (max_blue > 0) {
-      lines(df$dates, df$blue_cases, col = "blue")
-    }
-    if (!is.null(file_base)) {
-      dev.off()
-      #      print("off 2")
-    }
-
-  }
-
 }
 
 # use this to combine places
@@ -870,61 +682,7 @@ aggregate_dfs <- function(in_df, new_df) {
         in_df[r, "daily_cases_sum14d"] / in_df[r, "pop"]
     }
 
-    if (ENABLE_RED_BLUE) {
-      in_df[r, "red_cases"] <-
-        in_df[r, "red_cases"] + new_df[r, "red_cases"]
-      #      print(r)
-      if (r < 8) {
-        in_df[r, "red_daily_cases_avrg7d"] <- 0
-        in_df[r, "red_daily_cases_per_hundy_avrg7d"] <- 0
-      }
-      else {
-      }
-      if (r < 15) {
-        in_df[r, "red_daily_cases_avrg14d"] <- 0
-        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- 0
-      }
-      else {
-        #        in_df[r, "red_daily_cases_avrg14d"] <- zoo::rollmean(in_df[(r-13):r, "daily_cases"], k = 14, fill = NA, align="left")[0]
-        #        in_df[r, "red_daily_cases_per_hundy_avrg14d"] <- in_df[r, "red_daily_cases_avrg14d"] / in_df[r, "pop"]
-      }
-
-      in_df[r, "red_daily_cases_per_hundy_avrg7d"] <-
-        in_df[r, "red_daily_cases_per_hundy_avrg7d"] +
-        new_df[r, "red_daily_cases_per_hundy_avrg7d"]
-      in_df[r, "red_daily_cases_per_hundy_avrg14d"] <-
-        in_df[r, "red_daily_cases_per_hundy_avrg14d"] +
-        new_df[r, "red_daily_cases_per_hundy_avrg14d"]
-
-
-      in_df[r, "red_pop"] <-
-        in_df[r, "red_pop"] + new_df[r, "red_pop"]
-      in_df[r, "red_cases_per_hundy"] <-
-        in_df[r, "red_cases_per_hundy"] +
-        new_df[r, "red_cases_per_hundy"]
-      in_df[r, "blue_cases"] <-
-        in_df[r, "blue_cases"] + new_df[r, "blue_cases"]
-
-      in_df[r, "blue_daily_cases_avrg7d"] <-
-        in_df[r, "blue_daily_cases_avrg7d"] +
-        new_df[r, "blue_daily_cases_avrg7d"]
-      in_df[r, "blue_daily_cases_avrg14d"] <-
-        in_df[r, "blue_daily_cases_avrg14d"] +
-        new_df[r, "blue_daily_cases_avrg14d"]
-      in_df[r, "blue_daily_cases_per_hundy_avrg7d"] <-
-        in_df[r, "blue_daily_cases_per_hundy_avrg7d"] +
-        new_df[r, "blue_daily_cases_per_hundy_avrg7d"]
-      in_df[r, "blue_daily_cases_per_hundy_avrg14d"] <-
-        in_df[r, "blue_daily_cases_per_hundy_avrg14d"] +
-        new_df[r, "blue_daily_cases_per_hundy_avrg14d"]
-
-      in_df[r, "blue_pop"] <-
-        in_df[r, "blue_pop"] + new_df[r, "blue_pop"]
-      in_df[r, "blue_cases_per_hundy"] <-
-        in_df[r, "blue_cases_per_hundy"] +
-        new_df[r, "blue_cases_per_hundy"]
-    }
-  } # enable red blue
+  }
 
   return(in_df)
 
