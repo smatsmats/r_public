@@ -34,7 +34,6 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 
 # Some flags
 USE_JHU_POPS <- config$use_jhu_pops     # don't use populations directly from census
-ENABLE_RED_BLUE <- config$enable_red_blue
 USA_ALL <- config$usa_all
 USE_GGPLOT <- config$use_ggplot       # versus base graphs
 VERBOSE <- config$verbose
