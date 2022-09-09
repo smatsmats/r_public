@@ -17,8 +17,12 @@ library("maps")
 library("mapdata")
 
 # for map transformations
+# will need to migrate off of
+# use sf, consider stars or terra
+options("rgdal_show_exportToProj4_warnings"="none")
 library("rgeos")
 library("rgdal")
+set_thin_PROJ6_warnings(TRUE)
 library("maptools")
 
 # use tigris for pullng cb shapfiles
