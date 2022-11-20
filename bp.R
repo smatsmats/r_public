@@ -3,6 +3,7 @@
 library('tidyverse')
 library('scales')
 library('gridExtra')
+library('lubridate')
 
 
 bp_in <- read.csv('/Users/willey/Google Drive/Health/OMRON.csv')
@@ -127,12 +128,22 @@ ggplot(bp_days, aes(x = date_)) +
   labs(x = "Date")
 
 x_min = min(bp_days$date_)
-sys_range_labels <-
+dia_range_labels <-
   data.frame(
     x = c(x_min, x_min, x_min),
-    y = c(70, 85, 95),
+    y_low = c(70, 80, 90),
+    y_mid = c(75, 85, 95),
     labels = c('Normal', 'Hypertension 1', 'Hypertension 2')
   )
+sys_range_labels <-
+  data.frame(
+    x = rep(x_min, 4),
+    y_low = c(120, 130, 140, 150),
+    y_mid = c(115, 125, 135, 145),
+    labels = c('Normal', 'Elevated', 'Hypertension 1', 'Hypertension 2')
+  )
+
+
 
 # day values SYSTOLIC
 sys_plot <- ggplot(bp_days, aes(x = date_)) +
@@ -158,12 +169,11 @@ sys_plot <- ggplot(bp_days, aes(x = date_)) +
               method = "lm",
               col = "blue",
               formula = 'y ~ x') +
-  scale_x_datetime(breaks = "1 month", labels = date_format("%b-%d-%Y"),
-                   expand = c(0, 0)) +
-
   geom_point(aes(y = sys_mean), col = "blue") +
   ggtitle("Systolic Blood Pressure - Day Average Values") +
   scale_y_continuous(name = "Systolic (mmHg)") +
+  scale_x_datetime(breaks = "3 months", labels = date_format("%b-%d-%Y"),
+                   expand = c(0, 0)) +
   theme_bw() +
   theme(
     axis.title.y.left = element_text(color = "blue"),
@@ -173,10 +183,50 @@ sys_plot <- ggplot(bp_days, aes(x = date_)) +
     plot.title = element_text(hjust = 0.5),
     plot.caption = element_text(hjust = 0.5)
   ) +
-  geom_text(data = sys_range_labels, angle = 90, aes(x=x, y=y, label=labels) ) +
+  geom_text(data = sys_range_labels,
+            angle = 90,
+            aes(x = x + days(5), y = y_mid, label = labels)) +
   labs(x = "Date")
 
 sys_plot
+sys_plot_wc <- sys_plot +
+  geom_rect(
+    ymin = 0,
+    ymax = 120,
+    xmin = min(bp_days$date_),
+    xmax = max(bp_days$date_),
+    size = 0,
+    fill = "darkseagreen1",
+    alpha = 0.025
+  ) +
+  geom_rect(
+    ymin = 120,
+    ymax = 130,
+    xmin = min(bp_days$date_),
+    xmax = max(bp_days$date_),
+    size = 0,
+    fill = "yellow",
+    alpha = 0.005
+  ) +
+  geom_rect(
+    ymin = 130,
+    ymax = 140,
+    xmin = min(bp_days$date_),
+    xmax = max(bp_days$date_),
+    size = 0,
+    fill = "indianred1",
+    alpha = 0.005
+  ) +
+  geom_rect(
+    ymin = 140,
+    ymax = 200,
+    xmin = min(bp_days$date_),
+    xmax = max(bp_days$date_),
+    size = 0,
+    fill = "indianred3",
+    alpha = 0.01
+  )
+sys_plot_wc
 # DIASTOLIC
 
 dia_plot <- ggplot(bp_days, aes(x = date_)) +
@@ -193,6 +243,28 @@ dia_plot <- ggplot(bp_days, aes(x = date_)) +
     size = .5,
     linetype = "dashed"
   ) +
+  geom_smooth(aes(y =  dia_mean),
+              method = "lm",
+              col = "red",
+              formula = 'y ~ x') +
+  geom_point(aes(y =  dia_mean), col = "red") +
+  ggtitle("Diastolic Blood Pressure - Day Average Values") +
+  scale_y_continuous(name = "Diastolic (mmHg)") +
+  scale_x_datetime(breaks = "3 months", labels = date_format("%b-%d-%Y"),
+                   expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.y.left = element_text(color = "red"),
+    axis.text.y.left = element_text(color = "red"),
+    plot.title = element_text(hjust = 0.5),
+    plot.caption = element_text(hjust = 0.5)
+  ) +
+  geom_text(data = dia_range_labels,
+            angle = 90,
+            aes(x = x + days(5), y = y_mid, label = labels)) +
+  labs(x = "Date")
+dia_plot
+dia_plot_wc <- dia_plot +
   geom_rect(
     ymin = 0,
     ymax = 80,
@@ -219,23 +291,9 @@ dia_plot <- ggplot(bp_days, aes(x = date_)) +
     size = 0,
     fill = "indianred3",
     alpha = 0.01
-  ) +
-  geom_smooth(aes(y =  dia_mean),
-              method = "lm",
-              col = "red",
-              formula = 'y ~ x') +
-  geom_point(aes(y =  dia_mean), col = "red") +
-  ggtitle("Diastolic Blood Pressure - Day Average Values") +
-  scale_y_continuous(name = "Diastolic (mmHg)") +
-  theme_bw() +
-  theme(
-    axis.title.y.left = element_text(color = "red"),
-    axis.text.y.left = element_text(color = "red"),
-    plot.title = element_text(hjust = 0.5),
-    plot.caption = element_text(hjust = 0.5)
-  ) +
-  labs(x = "Date")
+  )
 
-dia_plot
+dia_plot_wc
 grid.arrange(sys_plot, dia_plot)
+grid.arrange(sys_plot_wc, dia_plot_wc)
 
