@@ -5,7 +5,7 @@ library('scales')
 library('gridExtra')
 
 
-bp_in <- read.csv('/Users/willey/Desktop/OMRON.csv')
+bp_in <- read.csv('/Users/willey/Google Drive/Health/OMRON.csv')
 nrow(bp_in)
 bp_in <- unique(bp_in)
 nrow(bp_in)
