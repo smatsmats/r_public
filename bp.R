@@ -6,41 +6,74 @@ library('gridExtra')
 library('lubridate')
 library('googlesheets4')
 
+
+
 #bp_inX <- read.csv('/Users/willey/Google Drive/Health/OMRON.csv')
 # Read google sheets data into R
+# keep bp_in pristine
 bp_in <- read_sheet('https://docs.google.com/spreadsheets/d/1ZdK5msA6lJPOXnp4lrSIL-EXHu5exARBoeQlcYx8jxw/edit#gid=1687413771')
 
 # data cleanup
-count1 <- nrow(bp_in)
-bp_in <- unique(bp_in)
-dropped <- count1 - nrow(bp_in)
+bp_tmp <- unique(bp_in)
+dropped <- nrow(bp_in) - nrow(bp_tmp)
 print(paste("Dropped", dropped, "duplicate rows"))
 
+# remove observations marked to be exlcuded
+bp_tmp <- bp_tmp %>% filter(is.na(Exclude))
+
 # date times
-bp_in$dt <- as.POSIXct(as.character(paste(bp_in$Date, bp_in$Time)), format = "%d-%b-%y %H:%M")
+bp_tmp$dt <- as.POSIXct(as.character(paste(bp_tmp$Date, bp_tmp$Time)), format = "%d-%b-%y %H:%M")
 
 # add cleaner col names
-bp_in$Systolic <- bp_in$`Systolic (mmHg)`
-bp_in$`Systolic (mmHg)` <- NULL
-bp_in$Diastolic <- bp_in$`Diastolic (mmHg)`
-bp_in$`Diastolic (mmHg)` <- NULL
+bp_tmp$Systolic <- bp_tmp$`Systolic (mmHg)`
+bp_tmp$`Systolic (mmHg)` <- NULL
+bp_tmp$Diastolic <- bp_tmp$`Diastolic (mmHg)`
+bp_tmp$`Diastolic (mmHg)` <- NULL
 
 # new df with average values per day
-bp_days <- bp_in %>%
+bp_days <- bp_tmp %>%
   group_by(Date) %>%
   summarize(sys_mean = mean(Systolic),dia_mean = mean(Diastolic))
 
-# leftover from using CSV file
-#bp_days$date_ <- as.POSIXct(as.character(bp_days$Date), format = "%d-%b-%y")
+# long instead of wide
+combo_days <- gather(bp_days, measure, value, sys_mean:dia_mean)
+
+# recent
+recent_days <- bp_days %>% filter(Date >= Sys.time() - months(3))
+recent_combo_days <- combo_days %>% filter(Date >= Sys.time() - months(3))
 
 summary(bp_days$sys_mean)
-
 sd(bp_days$sys_mean)
 plot(bp_days$Date, bp_days$sys_mean)
 hist(bp_days$sys_mean)
 
-#ggplot(bp_days, aes(sys_mean)) +
-#  geom_histogram(bins = 7)
+summary(recent_days$sys_mean)
+sd(recent_days$sys_mean)
+plot(recent_days$Date, recent_days$sys_mean)
+hist(recent_days$sys_mean)
+
+
+make_boxplot <- function(df) {
+  p <- ggplot(df, aes(x = measure, y = value)) +
+    geom_boxplot(outlier.colour = "red") +
+    ggtitle("Blood Pressure - Boxplot") +
+    theme_bw() +
+    theme(
+      axis.title.y.left = element_text(color = "blue"),
+      axis.text.y.left = element_text(color = "blue"),
+      axis.title.y.right = element_text(color = "red"),
+      axis.text.y.right = element_text(color = "red"),
+      plot.title = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5)
+    ) +
+    labs(x = "")
+  return(p)
+
+}
+
+print(make_boxplot(combo_days))
+print(make_boxplot(recent_combo_days))
+
 
 summary(bp_days$dia_mean)
 sd(bp_days$dia_mean)
@@ -48,22 +81,22 @@ plot(bp_days$Date, bp_days$dia_mean)
 hist(bp_days$dia_mean)
 
 # for using two scales
-scale_factor <- max(bp_in$Systolic) / max(bp_in$Diastolic)
+scale_factor <- max(bp_days$sys_mean) / max(bp_days$dia_mean)
 
 # all values
 ggplot(bp_in, aes(x = Date)) +
   geom_smooth(
-    aes(y = Systolic),
+    aes(y = `Systolic (mmHg)`),
     method = "loess",
     col = "red",
     formula = 'y ~ x'
   ) +
-  geom_smooth(aes(y =  Diastolic * scale_factor),
+  geom_smooth(aes(y =  `Diastolic (mmHg)` * scale_factor),
               method = "loess",
               formula = 'y ~ x') +
-  geom_point(aes(y = Systolic), col = "blue") +
-  geom_point(aes(y =  Diastolic * scale_factor), col = "red") +
-  ggtitle("Blood Pressure - All Values with Smoothed Line") +
+  geom_point(aes(y = `Systolic (mmHg)`), col = "blue") +
+  geom_point(aes(y =  `Diastolic (mmHg)` * scale_factor), col = "red") +
+  ggtitle("Blood Pressure - All Raw Values with Smoothed Line") +
   scale_y_continuous(name = "Systolic (mmHg)",
 #                     sec.axis = sec_axis( ~ . / scale_factor, name = "Diastolic (mmHg)")
                     ) +
