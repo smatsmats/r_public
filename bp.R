@@ -15,11 +15,12 @@ bp_in <- read_sheet('https://docs.google.com/spreadsheets/d/1ZdK5msA6lJPOXnp4lrS
 
 # data cleanup
 bp_tmp <- unique(bp_in)
-dropped <- nrow(bp_in) - nrow(bp_tmp)
-print(paste("Dropped", dropped, "duplicate rows"))
+after_unique <- nrow(bp_tmp)
+print(paste("Dropped", nrow(bp_in) - after_unique, "duplicate rows"))
 
 # remove observations marked to be exlcuded
 bp_tmp <- bp_tmp %>% filter(is.na(Exclude))
+print(paste("Dropped", after_unique - nrow(bp_tmp), "excluded rows"))
 
 # date times
 bp_tmp$dt <- as.POSIXct(as.character(paste(bp_tmp$Date, bp_tmp$Time)), format = "%d-%b-%y %H:%M")
