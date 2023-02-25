@@ -54,10 +54,10 @@ plot(recent_days$Date, recent_days$sys_mean)
 hist(recent_days$sys_mean)
 
 
-make_boxplot <- function(df) {
+make_boxplot <- function(df, subtitle = NULL) {
   p <- ggplot(df, aes(x = measure, y = value)) +
     geom_boxplot(outlier.colour = "red") +
-    ggtitle("Blood Pressure - Boxplot") +
+    ggtitle("Blood Pressure - Boxplot", subtitle = subtitle) +
     theme_bw() +
     theme(
       axis.title.y.left = element_text(color = "blue"),
@@ -65,15 +65,16 @@ make_boxplot <- function(df) {
       axis.title.y.right = element_text(color = "red"),
       axis.text.y.right = element_text(color = "red"),
       plot.title = element_text(hjust = 0.5),
-      plot.caption = element_text(hjust = 0.5)
+      plot.caption = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5)
     ) +
     labs(x = "")
   return(p)
 
 }
 
-print(make_boxplot(combo_days))
-print(make_boxplot(recent_combo_days))
+print(make_boxplot(combo_days, "All Observations"))
+print(make_boxplot(recent_combo_days, "Recent Observations"))
 
 
 summary(bp_days$dia_mean)
