@@ -125,31 +125,31 @@ ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 120,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 130,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 140,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 80 * scale_factor,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 90 * scale_factor,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(aes(y = sys_mean),
@@ -199,19 +199,19 @@ sys_plot <- ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 120,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 130,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 140,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(
@@ -254,7 +254,7 @@ sys_plot_wc <- ggplot(bp_days, aes(x = Date)) +
     ymax = 120,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkseagreen1",
     alpha = 0.025
   ) +
@@ -263,7 +263,7 @@ sys_plot_wc <- ggplot(bp_days, aes(x = Date)) +
     ymax = 130,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "yellow",
     alpha = 0.005
   ) +
@@ -272,7 +272,7 @@ sys_plot_wc <- ggplot(bp_days, aes(x = Date)) +
     ymax = 140,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "indianred1",
     alpha = 0.005
   ) +
@@ -281,26 +281,26 @@ sys_plot_wc <- ggplot(bp_days, aes(x = Date)) +
     ymax = 200,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkred",
     alpha = 0.01
   ) +
   geom_hline(
     yintercept = 120,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 130,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 140,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(
@@ -343,13 +343,13 @@ dia_plot <- ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 80 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 90 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(aes(y =  dia_mean),
@@ -385,7 +385,7 @@ dia_plot_wc <-  ggplot(bp_days, aes(x = Date)) +
     ymax = 80,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkseagreen1",
     alpha = 1
   ) +
@@ -394,7 +394,7 @@ dia_plot_wc <-  ggplot(bp_days, aes(x = Date)) +
     ymax = 90,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "indianred1",
     alpha = 0.005
   ) +
@@ -403,7 +403,7 @@ dia_plot_wc <-  ggplot(bp_days, aes(x = Date)) +
     ymax = 900,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkred",
     alpha = 0.01
   ) +
@@ -411,13 +411,13 @@ dia_plot_wc <-  ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 80 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 90 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(aes(y =  dia_mean),
