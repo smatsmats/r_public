@@ -29,6 +29,7 @@ options(tigris_use_cache = TRUE)
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
+STATIC_DATE <- "2023/3/10"     # no longer being updated after March 10, 2023
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
@@ -48,8 +49,12 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 
 # constants
 plot_start_date <- "2020/3/1"  # not the earliest case in WA but ...
-plot_end_date <-
-  format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
+if ( STATIC_DATE == FALSE ) {
+  plot_end_date <-
+    format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
+} else {
+  plot_end_date <- STATIC_DATE
+}
 cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
 daily_c19_cases_txt <- "Daily COVID-19 Cases"
 fourteen_day_avrg_txt <- "14day Average"
