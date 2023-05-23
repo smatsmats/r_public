@@ -31,11 +31,12 @@ options(tigris_use_cache = TRUE)
 #
 #
 
-# Some flags
+# Some flags - These get overwritten in covid19_run.R but
+# leave them here for testing
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
-STATIC_DATE <- "2023/3/10"     # no longer being updated after March 10, 2023 k
+STATIC_DATE <- "2023/3/10"     # no longer being updated after March 10, 2023
 
 
 # don't push to amazon if we don't have the environment vars
