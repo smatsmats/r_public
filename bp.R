@@ -189,31 +189,31 @@ ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 120,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 130,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 140,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 80 * scale_factor,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 90 * scale_factor,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(aes(y = sys_mean),
@@ -263,25 +263,27 @@ sys_plot <- ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 120,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 130,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 140,
     col = "blue",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
-  geom_smooth(aes(y = sys_mean),
-              method = "lm",
-              col = "blue",
-              formula = 'y ~ x') +
+  geom_smooth(
+    aes(y = sys_mean),
+    method = "lm",
+    col = "blue",
+    formula = 'y ~ x'
+  ) +
   geom_point(aes(y = sys_mean), col = "blue") +
   ggtitle("Systolic Blood Pressure - Day Average Values") +
   scale_y_continuous(name = "Systolic (mmHg)") +
@@ -294,21 +296,29 @@ sys_plot <- ggplot(bp_days, aes(x = Date)) +
     axis.title.y.right = element_text(color = "red"),
     axis.text.y.right = element_text(color = "red"),
     plot.title = element_text(hjust = 0.5),
-    plot.caption = element_text(hjust = 0.5)
+    plot.caption = element_text(hjust = 1,
+                                margin = margin(t = -10, unit = "pt"))
   ) +
   geom_text(data = sys_range_labels,
             angle = 90,
-            aes(x = x + days(5), y = y_mid, label = labels)) +
-  labs(x = "Date")
+            aes(
+              x = x + days(5),
+              y = y_mid,
+              label = labels
+            )) +
+  labs(x = "Date",
+       caption = paste("created",
+                        format(Sys.time(),
+                               "%m/%d/%Y %H:%M:%S")))
 
 sys_plot
-sys_plot_wc <- sys_plot +
+sys_plot_wc <- ggplot(bp_days, aes(x = Date)) +
   geom_rect(
     ymin = 0,
     ymax = 120,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkseagreen1",
     alpha = 0.025
   ) +
@@ -317,7 +327,7 @@ sys_plot_wc <- sys_plot +
     ymax = 130,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "yellow",
     alpha = 0.005
   ) +
@@ -326,7 +336,7 @@ sys_plot_wc <- sys_plot +
     ymax = 140,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "indianred1",
     alpha = 0.005
   ) +
@@ -335,10 +345,60 @@ sys_plot_wc <- sys_plot +
     ymax = 200,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
-    fill = "indianred3",
+    linewidth = 0,
+    fill = "darkred",
     alpha = 0.01
-  )
+  ) +
+  geom_hline(
+    yintercept = 120,
+    col = "blue",
+    linewidth = .5,
+    linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = 130,
+    col = "blue",
+    linewidth = .5,
+    linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = 140,
+    col = "blue",
+    linewidth = .5,
+    linetype = "dashed"
+  ) +
+  geom_smooth(
+    aes(y = sys_mean),
+    method = "lm",
+    col = "blue",
+    formula = 'y ~ x'
+  ) +
+  geom_point(aes(y = sys_mean), col = "blue") +
+  ggtitle("Systolic Blood Pressure - Day Average Values") +
+  scale_y_continuous(name = "Systolic (mmHg)") +
+  scale_x_datetime(breaks = "3 months",
+                   expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.y.left = element_text(color = "blue"),
+    axis.text.y.left = element_text(color = "blue"),
+    axis.title.y.right = element_text(color = "red"),
+    axis.text.y.right = element_text(color = "red"),
+    plot.title = element_text(hjust = 0.5),
+    plot.caption = element_text(hjust = 1,
+                                margin = margin(t = -10, unit = "pt"))
+  ) +
+  geom_text(data = sys_range_labels,
+            angle = 90,
+            aes(
+              x = x + days(5),
+              y = y_mid,
+              label = labels
+            )) +
+  labs(x = "Date",
+       caption = paste("created",
+                       format(Sys.time(),
+                              "%m/%d/%Y %H:%M:%S")))
 sys_plot_wc
 # DIASTOLIC
 
@@ -347,13 +407,13 @@ dia_plot <- ggplot(bp_days, aes(x = Date)) +
   geom_hline(
     yintercept = 80 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_hline(
     yintercept = 90 ,
     col = "red",
-    size = .5,
+    linewidth = .5,
     linetype = "dashed"
   ) +
   geom_smooth(aes(y =  dia_mean),
@@ -370,29 +430,35 @@ dia_plot <- ggplot(bp_days, aes(x = Date)) +
     axis.title.y.left = element_text(color = "red"),
     axis.text.y.left = element_text(color = "red"),
     plot.title = element_text(hjust = 0.5),
-    plot.caption = element_text(hjust = 0.5)
+    plot.caption = element_text(hjust = 1,
+                                margin = margin(t = -10, unit = "pt"))
   ) +
   geom_text(data = dia_range_labels,
             angle = 90,
             aes(x = x + days(5), y = y_mid, label = labels)) +
-  labs(x = "Date")
+  labs(x = "Date",
+       caption = paste("created",
+                       format(Sys.time(),
+                              "%m/%d/%Y %H:%M:%S")))
+
 dia_plot
-dia_plot_wc <- dia_plot +
+
+dia_plot_wc <-  ggplot(bp_days, aes(x = Date)) +
   geom_rect(
     ymin = 0,
     ymax = 80,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "darkseagreen1",
-    alpha = 0.025
+    alpha = 1
   ) +
   geom_rect(
     ymin = 80,
     ymax = 90,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
+    linewidth = 0,
     fill = "indianred1",
     alpha = 0.005
   ) +
@@ -401,12 +467,50 @@ dia_plot_wc <- dia_plot +
     ymax = 900,
     xmin = min(bp_days$Date),
     xmax = max(bp_days$Date),
-    size = 0,
-    fill = "indianred3",
+    linewidth = 0,
+    fill = "darkred",
     alpha = 0.01
-  )
+  ) +
+  #  ylim
+  geom_hline(
+    yintercept = 80 ,
+    col = "red",
+    linewidth = .5,
+    linetype = "dashed"
+  ) +
+  geom_hline(
+    yintercept = 90 ,
+    col = "red",
+    linewidth = .5,
+    linetype = "dashed"
+  ) +
+  geom_smooth(aes(y =  dia_mean),
+              method = "lm",
+              col = "red",
+              formula = 'y ~ x') +
+  geom_point(aes(y =  dia_mean), col = "red") +
+  ggtitle("Diastolic Blood Pressure - Day Average Values") +
+  scale_y_continuous(name = "Diastolic (mmHg)") +
+  scale_x_datetime(breaks = "3 months",
+                   expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.y.left = element_text(color = "red"),
+    axis.text.y.left = element_text(color = "red"),
+    plot.title = element_text(hjust = 0.5),
+    plot.caption = element_text(hjust = 1,
+                                margin = margin(t = -10, unit = "pt"))
+  ) +
+  geom_text(data = dia_range_labels,
+            angle = 90,
+            aes(x = x + days(5), y = y_mid, label = labels)) +
+  labs(x = "Date",
+       caption = paste("created",
+                       format(Sys.time(),
+                              "%m/%d/%Y %H:%M:%S")))
 
 dia_plot_wc
+
 grid.arrange(sys_plot, dia_plot)
 grid.arrange(sys_plot_wc, dia_plot_wc)
 
