@@ -1382,6 +1382,12 @@ make_a_map_from_base <- function(df,
     print(paste("iqr", iqr, "med", med, "range", data_range))
   }
 
+  if ( STATIC_DATE == FALSE ) {
+    subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+  } else {
+    subtitle = paste("as of", format(as.Date(STATIC_DATE), "%m/%d/%Y"))
+  }
+
   if (!is.null(filebase)) {
     filename <- paste(filebase, "jpg", sep = ".")
     jpeg(filename = filename,
@@ -1394,7 +1400,7 @@ make_a_map_from_base <- function(df,
     theme_bw() +
     ditch_the_axes +
     labs(title = title,
-        subtitle = subtitle) +
+         subtitle = subtitle) +
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
@@ -1984,3 +1990,4 @@ make_maps <- function() {
 
   return()
 }
+
