@@ -38,6 +38,7 @@ USA_ALL <- config$usa_all
 USE_GGPLOT <- config$use_ggplot       # versus base graphs
 VERBOSE <- config$verbose
 KEEP_FILES <- config$keep_files      # don't remove files after being pushed
+STATIC_DATE <- config$static_date
 
 cat("Code loaded\n")
 

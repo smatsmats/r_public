@@ -9,6 +9,7 @@ test:
     use_ggplot: TRUE       # versus base graphs
     verbose: FALSE
     keep_files: FALSE      # don't remove files after being pushed
+    static_date: "2023/3/10"     # no longer being updated after March 10, 2023
 
     bad_data_states: 
     - Nebraska
@@ -16,3 +17,17 @@ test:
     - 'Baltimore, Maryland'
 
 prod:
+    tmpdir: '/tmp'
+
+    use_jhu_pops: TRUE     # don't use populations directly from census
+    usa_all: TRUE
+    use_ggplot: TRUE       # versus base graphs
+    verbose: FALSE
+    keep_files: FALSE      # don't remove files after being pushed
+    static_date: "2023/3/10"     # no longer being updated after March 10, 2023
+
+    bad_data_states: 
+    - Nebraska
+    bad_data_counties: 
+    - 'Baltimore, Maryland'
+
