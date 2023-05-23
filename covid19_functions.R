@@ -35,6 +35,8 @@ options(tigris_use_cache = TRUE)
 USA_ALL <- TRUE
 VERBOSE <- TRUE
 KEEP_FILES <- FALSE      # don't remove files after being pushed
+STATIC_DATE <- "2023/3/10"     # no longer being updated after March 10, 2023 k
+
 
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
@@ -53,9 +55,13 @@ if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
 }
 
 # constants
+if ( STATIC_DATE == FALSE ) {
+  plot_end_date <-
+    format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
+} else {
+  plot_end_date <- STATIC_DATE
+}
 plot_start_date <- "2020/3/1"  # not the earliest case in WA but ...
-plot_end_date <-
-  format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
 cumulative_c19_cases_txt <- "Cumulative COVID-19 Cases"
 daily_c19_cases_txt <- "Daily COVID-19 Cases"
 fourteen_day_avrg_txt <- "14day Average"
@@ -138,7 +144,12 @@ onetime <- function() {
 
 newday <- function() {
   # reset end date
-  plot_end_date <<- format(Sys.Date(), "%Y/%m/%d")
+  if ( STATIC_DATE == FALSE ) {
+    plot_end_date <-
+      format(Sys.Date(), "%Y/%m/%d") # gets reset in newday function
+  } else {
+    plot_end_date <- STATIC_DATE
+  }
 
   # comes in wide
   usa_confirmed <<-
@@ -165,10 +176,10 @@ newday <- function() {
   global_confirmed_t$country <<-
     tolower(global_confirmed_t$Country.Region)
   country_t <<-
-    global_confirmed_t %>% 
+    global_confirmed_t %>%
     group_by(Country.Region, dates) %>%
     summarise(cases = sum(cases), .groups = 'drop')
-  
+
   uc <- usa_confirmed
 
   # remove soem junk
@@ -196,7 +207,7 @@ newday <- function() {
             format = "%m.%d.%y")
   usa_confirmed_t$state_ <<- tolower(usa_confirmed_t$Province_State)
   usa_states <<-
-    usa_confirmed_t %>% 
+    usa_confirmed_t %>%
     group_by(Province_State, dates) %>%
     summarise(cases = sum(cases), .groups = 'drop')
 
@@ -320,12 +331,12 @@ place <- function(admin_level,
   ok_levels <- c("country", "admin1", "admin2")
   if (!admin_level %in% ok_levels) {
     stop("need a correct administrative level")
-  } 
+  }
   obj <- list(country = country,
               admin1 = admin1,
               admin2 = admin2,
-              level = admin_level, 
-              txt = txt, 
+              level = admin_level,
+              txt = txt,
               df = df)
   attr(obj, "class") <- "place"
   return(obj)
@@ -378,6 +389,12 @@ make_plot <- function(df,
     cumulative_c19_cases_txt = main_txt
   }
 
+  if ( STATIC_DATE == FALSE ) {
+    subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+  } else {
+    subtitle = paste("as of", format(as.Date(STATIC_DATE), "%m/%d/%Y"))
+  }
+
   if (cases_per_hundy) {
     if (!is.null(file_base)) {
       f <- paste(file_base, "_cases_per_hundy", ".jpg", sep = "")
@@ -390,7 +407,7 @@ make_plot <- function(df,
       geom_line(colour = "purple", na.rm = FALSE) +
       labs(
         title = paste(loc_txt, cumulative_c19_cases_txt, hundy_txt),
-        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+        subtitle = subtitle,
         x = "Dates",
         y = ylab_cases_hundy_txt
       ) +
@@ -423,7 +440,7 @@ make_plot <- function(df,
       geom_line(colour = "purple", na.rm = FALSE) +
       labs(
         title = paste(loc_txt, cumulative_c19_cases_txt),
-        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+        subtitle = subtitle,
         x = "Dates",
         y = ylab_cases_txt
       ) +
@@ -462,7 +479,7 @@ make_plot <- function(df,
                                     "Daily" = "mediumpurple1")) +
       labs(
         title = paste(loc_txt, main_daily_cases_hundy_txt),
-        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+        subtitle = subtitle
       ) +
       scale_x_date(name = "Dates") +
       scale_y_continuous(
@@ -569,10 +586,10 @@ build_cols <- function(df, pop) {
 # selects a county
 # county = admin level2
 # for now this probably doesn't work for non US divisions
-get_admin2 <- function(state_in, 
+get_admin2 <- function(state_in,
                        county_in,
                        country_in = "US") {
-  cat("building admin2: country:", 
+  cat("building admin2: country:",
       country_in,
       "| admin1 / state:",
       state_in,
@@ -591,8 +608,8 @@ get_admin2 <- function(state_in,
                              Province_State == state_in))
   }
 
-  pop <- get_pop(admin1 = state_in, 
-                 admin2 = county_in, 
+  pop <- get_pop(admin1 = state_in,
+                 admin2 = county_in,
                  country = country_in)
 
   df <- build_cols(county_cases_t, pop)
@@ -608,12 +625,12 @@ write_csv_file <- function(df, file_base) {
 # use this to combine places
 # as an example we aggreagate east and western Washington St
 # again, it should be a class method
-# 
+#
 # This is a little table of data in class object and how they're
 # combined
-# 
+#
 # var                           source          aggregate function
-#                           
+#
 # pop                           get_pop         addition
 # cases                         something       addition
 # daily_cases                   something       addition
@@ -691,7 +708,7 @@ aggregate_dfs <- function(in_df, new_df) {
 
 get_admin1 <- function(admin1_in,
                        country_in = "US") {
-  cat("building admin1: country:", 
+  cat("building admin1: country:",
       country_in,
       "| admin1 / state:",
       admin1_in,
@@ -840,6 +857,12 @@ build_all_counties <- function(state = "Washington",
       }
     }
 
+    if ( STATIC_DATE == FALSE ) {
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+    } else {
+      subtitle = paste("as of", format(as.Date(STATIC_DATE), "%m/%d/%Y"))
+    }
+
     if (plot_ref_and) {
       # multiple counties 14 day
       filename <- paste(ref_county, "_and_", county, ".jpg", sep = "")
@@ -869,7 +892,7 @@ build_all_counties <- function(state = "Washington",
         ylim(0, maxy) +
         labs(
           title = "Daily Cases per 100,000, 14day Average",
-          subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+          subtitle = subtitle,
           x = "Dates",
           y = ylab_daily_cases_hundy_txt
         ) +
@@ -997,6 +1020,12 @@ build_all_states <- function(combined = TRUE,
       }
     }
 
+    if ( STATIC_DATE == FALSE ) {
+      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+    } else {
+      subtitle = paste("as of", format(as.Date(STATIC_DATE), "%m/%d/%Y"))
+    }
+
     if (plot_wa_and) {
       # multiple counties 14 day
       filename <- paste("wa_and_", tolower(state), ".jpg", sep = "")
@@ -1022,7 +1051,7 @@ build_all_states <- function(combined = TRUE,
         ylim(0, max(new_df$daily_cases_per_hundy_avrg14d)) +
         labs(
           title = "Daily Cases per 100,000, 14day Average",
-          subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+          subtitle = subtitle,
           x = "Dates",
           y = ylab_daily_cases_hundy_txt
         ) +
@@ -1074,7 +1103,7 @@ wa_east_west <- function(plot_casesned = FALSE,
       next
     }
 
-    # get the county dataframe    
+    # get the county dataframe
     df_name <- tolower(paste(state, county, "df", sep = "_"))
     df_name <- str_replace_all(df_name, "[ ]", "_")
     df <- eval(parse(text = df_name))
@@ -1105,6 +1134,12 @@ wa_east_west <- function(plot_casesned = FALSE,
          height = plot_file_height)
   }
 
+  if ( STATIC_DATE == FALSE ) {
+    subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))
+  } else {
+    subtitle = paste("as of", format(as.Date(STATIC_DATE), "%m/%d/%Y"))
+  }
+
   plot(
     combined_east_df$dates,
     combined_east_df$cases_per_hundy,
@@ -1115,7 +1150,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     col = "gold",
     xlim = as.Date(c(plot_start_date, plot_end_date))
   )
-  mtext(paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")), side = 3)
+  mtext(subtitle, side = 3)
   legend(
     "topleft",
     legend = c("Eastern", "Western"),
@@ -1157,7 +1192,7 @@ wa_east_west <- function(plot_casesned = FALSE,
     scale_color_manual(values = c("gold", "green")) +
     labs(
       title = main_daily_cases_hundy_14d_avrg_txt,
-      subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S")),
+      subtitle = subtitle,
       x = "Dates",
       y = ylab_daily_cases_hundy_txt
     ) +
@@ -1359,7 +1394,7 @@ make_a_map_from_base <- function(df,
     theme_bw() +
     ditch_the_axes +
     labs(title = title,
-        subtitle = paste("created", format(Sys.time(), "%m/%d/%Y %H:%M:%S"))) +
+        subtitle = subtitle) +
     theme(
       plot.title = element_text(hjust = 0.5),
       plot.subtitle = element_text(hjust = 0.5),
@@ -1446,7 +1481,7 @@ transform_state <- function(object, rot, scale, shift){
     elide(shift = shift)
 }
 
-# manually construct insert boxes instead of map bboxes so they 
+# manually construct insert boxes instead of map bboxes so they
 # look nicer.
 insert_boxes <- function(p) {
   lat <- c(38,38,33,33,33,33)
@@ -1618,7 +1653,7 @@ load_cb_shapefile <- function(loc,
 
   polys <- spTransform(bound_df, CRS("+init=epsg:4326"))
   fortified <-
-    fortify(polys, region = "Combined_Key") %>% 
+    fortify(polys, region = "Combined_Key") %>%
     mutate(id = tolower(id))
 
   return(fortified)
@@ -1758,11 +1793,11 @@ make_map_bases <- function() {
   wa_counties_mapd_merged <<-
     subset(counties_mapd_merged, Province_State == "Washington")
   mddcva_counties_mapd_merged <<-
-    subset(counties_mapd_merged, 
-           Province_State == "Maryland" | 
-             Province_State == "Virginia" | 
+    subset(counties_mapd_merged,
+           Province_State == "Maryland" |
+             Province_State == "Virginia" |
              Province_State == "District of Columbia")
-  
+
   vax_states_merged <<-
     inner_join(states_mapd, vax_us_wide, by = "Province_State")
   # use key = "Province_State"
@@ -1774,8 +1809,8 @@ make_map_bases <- function() {
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
 
-  mddcva_df <<- subset(states_mapd, 
-                    region == "maryland" | 
+  mddcva_df <<- subset(states_mapd,
+                    region == "maryland" |
                       region == "district of columbia" |
                       region == "virginia")
   mddcva_base <<-
@@ -1783,7 +1818,7 @@ make_map_bases <- function() {
            mapping = aes(x = long, y = lat, group = group)) +
     coord_fixed(1.3) +
     geom_polygon(color = "black", fill = "gray")
-  
+
   states50_base <<-
     ggplot(data = states50,
            mapping = aes(
@@ -1809,15 +1844,15 @@ make_map_bases <- function() {
   # Nebraska puts all of there cases in 'Unassigned'
   # Maryland got hacked
   for (s in config$bad_data_states) {
-    counties50_merged[counties50_merged$Province_State 
+    counties50_merged[counties50_merged$Province_State
                       %in% s, ]$avrg14_per_hundy <- NA
-    counties50_merged[counties50_merged$Province_State 
+    counties50_merged[counties50_merged$Province_State
                       %in% s, ]$trend <- NA
-    
+
   }
-  
+
   counties50_merged <<- counties50_merged
-  
+
   return()
 }
 
@@ -1874,7 +1909,7 @@ make_maps <- function() {
     title = paste("Maryland, DC, Virginia", main_14day_trend_txt),
     filebase = "map_mddcva_trend"
   )
-  
+
   make_a_map_from_base(
     df = states50_merged,
     var = "avrg14_per_hundy",
