@@ -1,11 +1,51 @@
-
-
 library('tidyverse')
 library('scales')
 library('gridExtra')
 library('lubridate')
 library('googlesheets4')
+library("aws.s3")
 
+plot_file_width <- (480 * 2)
+plot_file_height <- (310 * 2)
+setwd("/tmp")
+
+# don't push to amazon if we don't have the environment vars
+if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
+  cat("No AWS creds in environment\n")
+  cat("turning off AWS pushes\n")
+  PUSH_TO_AMAZON <- FALSE
+} else {
+  # if (Sys.getenv("BUCKET") == "") {
+  #   cat("Must set environment var BUCKET\n")
+  #   quit()
+  # }
+  # else {
+  #   bucket <- Sys.getenv("BUCKET")
+  # }
+  PUSH_TO_AMAZON <- TRUE
+}
+bucket <- 'bp_graphs'
+
+
+file_to_bucket <- function(file, unlink_after = TRUE) {
+  if (PUSH_TO_AMAZON) {
+    file <- str_replace_all(file, " ", "_")
+    put_object(
+      file = file,
+      bucket = bucket,
+      multipart = FALSE,
+      acl = "public-read",
+      headers = list(),
+      verbose = TRUE,
+      show_progress = FALSE
+    )
+  }
+  if (unlink_after & !KEEP_FILES) {
+    unlink(file)
+  }
+  
+  return(0)
+}
 
 
 #bp_inX <- read.csv('/Users/willey/Google Drive/Health/OMRON.csv')
@@ -54,7 +94,14 @@ plot(recent_days$Date, recent_days$sys_mean)
 hist(recent_days$sys_mean)
 
 
-make_boxplot <- function(df, subtitle = NULL) {
+make_boxplot <- function(df, subtitle = NULL, filename = NULL) {
+  
+  if ( ! is.null(filename) ) {
+       jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  }
+  
   p <- ggplot(df, aes(x = measure, y = value)) +
     geom_boxplot(outlier.colour = "red") +
     ggtitle("Blood Pressure - Boxplot", subtitle = subtitle) +
@@ -69,13 +116,21 @@ make_boxplot <- function(df, subtitle = NULL) {
       plot.subtitle = element_text(hjust = 0.5)
     ) +
     labs(x = "")
-  return(p)
+  
+  if ( is.null(filename) ) {
+    print(p)
+  } else {
+    dev.off()
+  }
 
 }
 
-print(make_boxplot(combo_days, "All Observations"))
-print(make_boxplot(recent_combo_days, "Recent Observations"))
-
+make_boxplot(df = combo_days, 
+             subtitle = "All Observations", 
+             filename = "boxplot_all_obs.jpg")
+make_boxplot(df = recent_combo_days, 
+             subtitle = "Recent Observations",
+             filename = "boxplot_recent_obs.")
 
 summary(bp_days$dia_mean)
 sd(bp_days$dia_mean)
@@ -84,6 +139,11 @@ hist(bp_days$dia_mean)
 
 # for using two scales
 scale_factor <- max(bp_days$sys_mean) / max(bp_days$dia_mean)
+
+filename <- 'all_values.jpg'
+jpeg(filename = filename,
+     width = plot_file_width,
+     height = plot_file_height)
 
 # all values
 ggplot(bp_in, aes(x = Date)) +
@@ -112,6 +172,10 @@ ggplot(bp_in, aes(x = Date)) +
     plot.caption = element_text(hjust = 0.5)
   ) +
   labs(x = "Date")
+
+dev.off()
+file_to_bucket(filename)
+
 
 model_sys <- lm(sys_mean ~ Date, data = bp_days)
 sys_r2 <- summary(model_sys)
