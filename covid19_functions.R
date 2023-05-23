@@ -472,7 +472,7 @@ make_plot <- function(df,
     p <- ggplot(data = df, aes(dates)) +
       geom_line(
         aes(y = daily_cases_per_hundy, colour = "Daily"),
-        size = 0.3,
+        linewidth = 0.3,
         na.rm = FALSE
       ) +
       scale_color_manual(values = c("14 Day Average / Sum" = "red",
@@ -499,7 +499,7 @@ make_plot <- function(df,
         legend.position = c(0.35, 0.87),
         legend.background = element_rect(
           linetype = "solid",
-          size = 0.2,
+          linewidth = 0.2,
           colour = "black"
         )
       ) +
@@ -908,7 +908,7 @@ build_all_counties <- function(state = "Washington",
           legend.position = c(0.35, 0.87),
           legend.background = element_rect(
             linetype = "solid",
-            size = 0.2,
+            linewidth = 0.2,
             colour = "black"
           )
         )
@@ -1067,7 +1067,7 @@ build_all_states <- function(combined = TRUE,
           legend.position = c(0.35, 0.87),
           legend.background = element_rect(
             linetype = "solid",
-            size = 0.2,
+            linewidth = 0.2,
             colour = "black"
           )
         )
@@ -1212,7 +1212,7 @@ wa_east_west <- function(plot_casesned = FALSE,
       legend.position = c(0.35, 0.87),
       legend.background = element_rect(
         linetype = "solid",
-        size = 0.2,
+        linewidth = 0.2,
         colour = "black"
       )
     )
