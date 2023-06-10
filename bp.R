@@ -9,6 +9,8 @@ plot_file_width <- (480 * 2)
 plot_file_height <- (310 * 2)
 setwd("/tmp")
 
+KEEP_FILES <- TRUE
+
 # don't push to amazon if we don't have the environment vars
 if (Sys.getenv("AWS_DEFAULT_REGION") == "") {
   cat("No AWS creds in environment\n")
