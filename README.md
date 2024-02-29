@@ -1,6 +1,9 @@
 # r_public
 All COVID19 graphs and maps.  Other R stuff that's public moved to r_play.
 
+Note that rgeos and maptools R packages were depreciated for newer versions of R.  
+Tests in github workflows now fail because rgeos can't be fetched.  
+
 
 I created these graphs and maps both as a learning excercise and a way to get custom
 graphs to visualize what I wanted too.  I also didn't care for the way many US maps 
