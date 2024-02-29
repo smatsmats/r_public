@@ -43,7 +43,12 @@ my_sale <- function(symbol) {
   return(price)
 }
 
-numb_shares <- function(symbol) {
+my_div_out <- function(symbol) {
+  div_out <- sum(pp[pp$Symbol == symbol & pp$Type == 'Dividend (paid to cash)',]$`Div Out`)
+  return(div_out)
+}
+
+my_count <- function(symbol) {
   b <- sum(pp[pp$Symbol == symbol & pp$Type == 'Buy',]$count)
   s <- sum(pp[pp$Symbol == symbol & pp$Type == 'Sell',]$count)
   r <- sum(pp[pp$Symbol == symbol & pp$Type == 'Dividend (reinvested)',]$`Div Rein`)
@@ -56,6 +61,8 @@ setwd('/Users/willey/Desktop')
 today <- Sys.Date()
 
 pp_sheet <- read_sheet('https://docs.google.com/spreadsheets/d/1X_zjs811JESFbzLvw-p8HKmRhvPldJ40_BaojPxLBWo/edit#gid=2059880044')
+dead_stocks <- read_sheet('https://docs.google.com/spreadsheets/d/1X_zjs811JESFbzLvw-p8HKmRhvPldJ40_BaojPxLBWo/edit#gid=547817301', sheet=
+                            'Dead Securities')
 
 # clean out non-transation lines
 pp <- subset(pp_sheet, ! is.na(Name))
@@ -90,37 +97,51 @@ last_bidn_day <- "2023-11-22"
 
 
 symbols <- unique(pp$Symbol)
-symbols <- symbols[ !symbols == 'BREW']
-symbols <- symbols[ !symbols == 'PEGI']
-symbols <- symbols[ !symbols == 'SCTY']
+# remove cash transactions
 symbols <- symbols[ !symbols == 'Cash']
-symbols <- symbols[ !symbols == 'WCG']
 
-symbols <- symbols[ !symbols == 'AJRD']
-symbols <- symbols[ !symbols == 'BRK.B']
-symbols <- symbols[ !symbols == 'WCG']
 
-symbols <- symbols[ !symbols == 'XLNX']
-symbols <- symbols[ !symbols == 'WORK']
-symbols <- symbols[ !symbols == 'DOGE']
-symbols <- symbols[ !symbols == 'WSKY']
+# symbols <- symbols[ !symbols == 'BREW']
+# symbols <- symbols[ !symbols == 'PEGI']
+# symbols <- symbols[ !symbols == 'SCTY']
+# symbols <- symbols[ !symbols == 'WCG']
+# 
+# symbols <- symbols[ !symbols == 'AJRD']
+# symbols <- symbols[ !symbols == 'BRK.B']
+# symbols <- symbols[ !symbols == 'WCG']
+# 
+# symbols <- symbols[ !symbols == 'XLNX']
+# symbols <- symbols[ !symbols == 'WORK']
+# symbols <- symbols[ !symbols == 'DOGE']
+# symbols <- symbols[ !symbols == 'WSKY']
 
+indexes <- c('DOW', 'SP400', 'SP500')
+#symbols <- c(symbols, indexes)
 
 current_values <- data.frame(symbols)
 counts <- c()
 prices <- c()
 costs <- c()
 avrg_costs <- c()
+div_outs <- c()
 sells <- c()
 for (s in symbols) {
   print(s)
-  counts <- c(counts, numb_shares(s))
+  counts <- c(counts, my_count(s))
 #  the_stock <- get(s)
-  stock <- tq_get(s, get = "stock.prices", from = min(pp$Date), to=today)
-  prices <- c(prices, as.numeric(stock[nrow(stock)-1,'close']))
+  if ( ! s %in% dead_stocks$Symbol ) {
+    print('alive')
+    stock <- tq_get(s, get = "stock.prices", from = min(pp$Date), to=today)
+    prices <- c(prices, as.numeric(stock[nrow(stock)-1,'close']))
+    
+  } else {
+    prices <- c(prices, 0) 
+  }
+  
   costs <- c(costs, my_cost(s))
-  if ( numb_shares(s) > 0 ) {
-    avrg_costs <- c(avrg_costs, my_cost(s) / numb_shares(s))    
+  div_outs <- c(div_outs, my_div_out(s))
+  if ( my_count(s) > 0 ) {
+    avrg_costs <- c(avrg_costs, my_cost(s) / my_count(s))    
   } else {
     avrg_costs <- c(avrg_costs, 0) 
   }
@@ -131,6 +152,7 @@ current_values$price <- prices
 current_values$cost <- costs
 current_values$sell <- sells
 current_values$avrg_cost <- avrg_costs
+current_values$div_out <- div_outs
 
 current_values$position <- current_values$price * current_values$n
 
@@ -141,14 +163,14 @@ sum(current_values$position)
 
 
 holdings <- filter(current_values, n > 0)
-holdings$gain_loss <- holdings$position - holdings$cost
+holdings$gain_loss <- holdings$position - holdings$cost + holdings$div_out
 holdings$pct <- holdings$gain_loss / holdings$cost * 100
 
 sum(holdings$gain_loss)
 sum(holdings$gain_loss) / sum(holdings$cost) * 100
 
 closed <- filter(current_values, n == 0)
-closed$gain_loss <- closed$sell - closed$cost
+closed$gain_loss <- closed$sell - closed$cost + closed$div_out
 closed$pct <- closed$gain_loss / closed$cost * 100
 
 sum(closed$gain_loss)
@@ -163,6 +185,20 @@ invested <- sum(pp$Deposit) - sum(pp$Withdrawl)
 
 cat("Invested:", invested, "\n")
 
-cash_balance <- sum(pp$Deposit) - sum(pp$Withdrawl) - sum(current_values$cost) + sum(current_values$sell)
+cash_balance <-
+  sum(pp$Deposit) - 
+  sum(pp$Withdrawl) - 
+  sum(current_values$cost) + 
+  sum(current_values$sell) + 
+  sum(current_values$div_out) + 
+  sum(pp$`Interest / Misc`)
 cash_balance
 
+
+buys <- filter(pp, Type == 'Buy')
+sells <- filter(pp, Type == 'Sell')
+deposits <- filter(pp, Type == 'Deposit Cash')
+withdraws <- filter(pp, Type == 'Withdraw Cash')
+
+# write out holdings
+write_csv(holdings, 'holdings.csv')
