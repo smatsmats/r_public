@@ -174,6 +174,7 @@ mygraphs <- function() {
     ska = washington_skagit_df$cases_per_hundy,
     jeff = washington_jefferson_df$cases_per_hundy,
     kit = washington_kitsap_df$cases_per_hundy,
+    mas = washington_mason_df$cases_per_hundy,
     b_co = b_co_cases$cases_per_hundy,
     b_ci = b_ci_cases$cases_per_hundy,
     usa = usa_cases$cases_per_hundy
@@ -199,6 +200,7 @@ mygraphs <- function() {
     ska = washington_skagit_df$daily_cases_per_hundy_avrg14d,
     jeff = washington_jefferson_df$daily_cases_per_hundy_avrg14d,
     kit = washington_kitsap_df$daily_cases_per_hundy_avrg14d,
+    mas = washington_mason_df$daily_cases_per_hundy_avrg14d,
     usa = usa_cases$daily_cases_per_hundy_avrg14d,
     nebraska = nebraska_df$daily_cases_per_hundy_avrg14d,
     south_dakota = south_dakota_df$daily_cases_per_hundy_avrg14d,
@@ -223,6 +225,7 @@ mygraphs <- function() {
     wa = washington_df$daily_cases_per_hundy_sum14d,
     ska = washington_skagit_df$daily_cases_per_hundy_sum14d,
     kit = washington_kitsap_df$daily_cases_per_hundy_sum14d,
+    mas = washington_mason_df$daily_cases_per_hundy_sum14d,
     sno = washington_snohomish_df$daily_cases_per_hundy_sum14d,
     b_co = b_co_cases$daily_cases_per_hundy_sum14d
   )
@@ -733,6 +736,51 @@ mygraphs <- function() {
   dev.off()
   file_to_bucket(filename)
 
+  ##############################################################################
+  # Kitsap Neighbors
+  # multiple counties 14 day
+  filename = "kitsap_neighbs.jpg"
+  jpeg(filename = filename,
+       width = plot_file_width,
+       height = plot_file_height)
+  
+  maxy = max(california_df$daily_cases_per_hundy_avrg14d, na.rm = TRUE)
+  
+  p <- ggplot(data = temp_df_avrg, aes(dates)) +
+    geom_line(aes(y = or, colour = oregon_s_txt)) +
+    geom_line(aes(y = wa, colour = washington_s_txt)) +
+    geom_line(aes(y = ca_bc, colour = ca_bc_txt)) +
+    geom_line(aes(y = id, colour = idaho_s_txt)) +
+    geom_line(aes(y = ca, colour = california_s_txt)) +
+    scale_color_manual(values = c("lightblue", "pink", "brown", "lightgreen", "darkgreen")) +
+    ylim(0, maxy) +
+    labs(
+      title = main_daily_cases_hundy_14d_avrg_txt,
+      subtitle = subtitle,
+      x = "Dates",
+      y = ylab_daily_cases_hundy_txt
+    ) +
+    theme_bw() +
+    theme(
+      panel.grid.minor = element_blank(),
+      #            panel.grid.major = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      plot.caption = element_text(hjust = 0.5),
+      legend.title = element_blank(),
+      legend.position = c(0.35, 0.87),
+      legend.background = element_rect(
+        linetype = "solid",
+        size = 0.2,
+        colour = "black"
+      )
+    )
+  print(p)
+  
+  dev.off()
+  file_to_bucket(filename)
+  
   ##############################################################################
   # MISC2222222222222222222222bbbb
   # multiple counties 14 day
